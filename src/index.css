@@ -18,4 +18,35 @@
   .print-tag {
     @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700 ml-1;
   }
+
+  .subtle-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .subtle-scrollbar::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .subtle-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .subtle-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.22);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .subtle-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.4);
+    background-clip: padding-box;
+  }
+
+  .subtle-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }

@@ -40,13 +40,20 @@ export function calculatePrintingFee(items) {
 
 /**
  * Calculate the computed printing fee (10%) for items within a single category.
+ * Supports the default vendor as well as comparison vendors.
  * @param {Array} categoryItems
+ * @param {string} vendorId
  * @returns {number}
  */
-export function calculateCategoryPrintingFee(categoryItems) {
+export function calculateCategoryPrintingFee(categoryItems, vendorId = 'vendor_1') {
   const base = categoryItems
     .filter((item) => item.printable)
-    .reduce((sum, item) => sum + item.total, 0)
+    .reduce((sum, item) => {
+      const lineTotal = vendorId === 'vendor_1'
+        ? item.total
+        : (item.vendorData?.[vendorId]?.total ?? 0)
+      return sum + lineTotal
+    }, 0)
   return Math.round(base * PRINTING_FEE_RATE)
 }
 

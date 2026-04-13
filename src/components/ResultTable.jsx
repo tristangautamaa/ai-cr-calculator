@@ -2,8 +2,28 @@ import { useMemo, useState } from 'react'
 import { Copy, Download, Tag, Pencil, Check } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import useStore from '../store/useStore'
-import CategoryTable from './CategoryTable'
-import { formatCurrency, formatQty } from '../utils/formatters'
+import CategoryTable from './CategoryTableV2'
+import { calculateCategoryPrintingFee } from '../utils/printingFeeEngine'
+
+function sanitizeSheetName(name, usedNames) {
+  const fallback = 'Sheet'
+  const baseName = (name || fallback)
+    .replace(/[\\/?*\[\]:]/g, ' ')
+    .trim()
+    .slice(0, 31) || fallback
+
+  let candidate = baseName
+  let counter = 2
+
+  while (usedNames.has(candidate)) {
+    const suffix = ` ${counter}`
+    candidate = `${baseName.slice(0, 31 - suffix.length)}${suffix}`
+    counter += 1
+  }
+
+  usedNames.add(candidate)
+  return candidate
+}
 
 export default function ResultTable() {
   const { parsedItems, darkMode, editMode, toggleEditMode, vendors, addVendor } = useStore()
@@ -21,11 +41,29 @@ export default function ResultTable() {
     }, {})
   }, [regularItems])
 
+  function getPrimaryVendorValues(item) {
+    if (!item.isJasaCetak) {
+      return {
+        quantity: item.quantity,
+        price: item.price ?? '',
+        total: item.total,
+      }
+    }
+
+    const computedFee = calculateCategoryPrintingFee(groupedItems[item.category] || [])
+    return {
+      quantity: 1,
+      price: computedFee,
+      total: computedFee,
+    }
+  }
+
   function handleCopy() {
     const header = ['Name', 'Category', 'Qty', 'Unit', 'Price (IDR)', 'Total (IDR)'].join('\t')
-    const lines = regularItems.map((item) =>
-      [item.name, item.category, item.quantity, item.unit, item.price ?? '', item.total].join('\t')
-    )
+    const lines = regularItems.map((item) => {
+      const values = getPrimaryVendorValues(item)
+      return [item.name, item.category, values.quantity, item.unit, values.price, values.total].join('\t')
+    })
     navigator.clipboard.writeText([header, ...lines].join('\n')).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
@@ -33,18 +71,43 @@ export default function ResultTable() {
   }
 
   function handleExport() {
-    const data = regularItems.map((item) => ({
-      Category: item.category,
-      Name: item.name,
-      Qty: item.quantity,
-      Unit: item.unit,
-      'Price (IDR)': item.price ?? '',
-      'Total (IDR)': item.total,
-      Printable: item.printable ? 'Yes' : 'No',
-    }))
-    const ws = XLSX.utils.json_to_sheet(data)
+    const data = regularItems.map((item) => {
+      const values = getPrimaryVendorValues(item)
+      return {
+        Category: item.category,
+        Name: item.name,
+        Qty: values.quantity,
+        Unit: item.unit,
+        'Price (IDR)': values.price,
+        'Total (IDR)': values.total,
+        Printable: item.printable ? 'Yes' : 'No',
+      }
+    })
+
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Procurement')
+    const usedSheetNames = new Set()
+
+    const overviewSheet = XLSX.utils.json_to_sheet(data)
+    XLSX.utils.book_append_sheet(wb, overviewSheet, sanitizeSheetName('All Items', usedSheetNames))
+
+    Object.entries(groupedItems).forEach(([category, items]) => {
+      const categoryRows = items.map((item) => {
+        const values = getPrimaryVendorValues(item)
+        return {
+          Category: item.category,
+          Name: item.name,
+          Qty: values.quantity,
+          Unit: item.unit,
+          'Price (IDR)': values.price,
+          'Total (IDR)': values.total,
+          Printable: item.printable ? 'Yes' : 'No',
+        }
+      })
+
+      const categorySheet = XLSX.utils.json_to_sheet(categoryRows)
+      XLSX.utils.book_append_sheet(wb, categorySheet, sanitizeSheetName(category, usedSheetNames))
+    })
+
     XLSX.writeFile(wb, 'procurement_calculation.xlsx')
   }
 

@@ -8,13 +8,24 @@ const useStore = create((set) => ({
   darkMode: false,
   editMode: false,
   vendors: [{ id: 'vendor_1', name: 'Vendor 1' }],
+  vendorNamesByCategory: {},
 
   setRawInput: (value) => set({ rawInput: value }),
   setParsedItems: (items) => set({ parsedItems: items }),
   setPrintingFee: (fee) => set({ printingFee: fee }),
   toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
   toggleEditMode: () => set((state) => ({ editMode: !state.editMode })),
-  clearAll: () => set({ rawInput: '', parsedItems: [], printingFee: 0, editMode: false }),
+  clearAll: () => set({ rawInput: '', parsedItems: [], printingFee: 0, editMode: false, vendorNamesByCategory: {} }),
+  updateCategoryVendorName: (category, vendorId, name) =>
+    set((state) => ({
+      vendorNamesByCategory: {
+        ...state.vendorNamesByCategory,
+        [category]: {
+          ...state.vendorNamesByCategory[category],
+          [vendorId]: name,
+        },
+      },
+    })),
 
   updateItem: (id, changes) =>
     set((state) => {
@@ -89,7 +100,15 @@ const useStore = create((set) => ({
         updated.vendorData = newVendorData
         return updated
       })
-      return { vendors: updatedVendors, parsedItems: updatedItems }
+      const updatedVendorNamesByCategory = Object.fromEntries(
+        Object.entries(state.vendorNamesByCategory).map(([category, names]) => {
+          const nextNames = { ...names }
+          delete nextNames[vendorId]
+          return [category, nextNames]
+        })
+      )
+
+      return { vendors: updatedVendors, parsedItems: updatedItems, vendorNamesByCategory: updatedVendorNamesByCategory }
     }),
 }))
 
