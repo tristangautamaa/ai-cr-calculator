@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Copy, Download, Tag, Pencil, Check } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import useStore from '../store/useStore'
@@ -26,8 +26,9 @@ function sanitizeSheetName(name, usedNames) {
 }
 
 export default function ResultTable() {
-  const { parsedItems, darkMode, editMode, toggleEditMode, vendors, addVendor } = useStore()
+  const { parsedItems, darkMode, editMode, toggleEditMode, vendors, addVendor, printingFeeRate, setPrintingFeeRate } = useStore()
   const [copied, setCopied] = useState(false)
+  const [rateInput, setRateInput] = useState(String(printingFeeRate * 100))
 
   // Separate regular items from the printing fee row
   const regularItems = parsedItems.filter((i) => !i.isPrintingFee)
@@ -41,6 +42,10 @@ export default function ResultTable() {
     }, {})
   }, [regularItems])
 
+  useEffect(() => {
+    setRateInput(String(Number((printingFeeRate * 100).toFixed(2))))
+  }, [printingFeeRate])
+
   function getPrimaryVendorValues(item) {
     if (!item.isJasaCetak) {
       return {
@@ -50,7 +55,7 @@ export default function ResultTable() {
       }
     }
 
-    const computedFee = calculateCategoryPrintingFee(groupedItems[item.category] || [])
+    const computedFee = calculateCategoryPrintingFee(groupedItems[item.category] || [], 'vendor_1', printingFeeRate)
     return {
       quantity: 1,
       price: computedFee,
@@ -68,6 +73,16 @@ export default function ResultTable() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
+  }
+
+  function commitPrintingFeeRate() {
+    const parsedPercent = parseFloat(rateInput)
+    if (!Number.isFinite(parsedPercent)) {
+      setRateInput(String(Number((printingFeeRate * 100).toFixed(2))))
+      return
+    }
+    const normalizedPercent = Math.max(parsedPercent, 0)
+    setPrintingFeeRate(normalizedPercent / 100)
   }
 
   function handleExport() {
@@ -116,7 +131,7 @@ export default function ResultTable() {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className={`rounded-2xl px-5 py-3 flex items-center justify-between border shadow-sm ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+      <div className={`rounded-2xl px-5 py-3 flex items-center justify-between gap-3 border shadow-sm ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
         <div className="flex items-center gap-2">
           <Tag className={`w-4 h-4 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
           <span className={`font-semibold text-sm ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -131,7 +146,33 @@ export default function ResultTable() {
             </span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium ${
+            darkMode
+              ? 'border-gray-600 text-gray-300 bg-gray-700/40'
+              : 'border-gray-200 text-gray-600 bg-gray-50'
+          }`}>
+            <span>Jasa Cetak</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={rateInput}
+              onChange={(e) => setRateInput(e.target.value)}
+              onBlur={commitPrintingFeeRate}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur()
+              }}
+              className={`w-16 rounded border px-2 py-1 text-right text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 ${
+                darkMode
+                  ? 'bg-gray-900 border-gray-600 text-gray-200'
+                  : 'bg-white border-gray-300 text-gray-700'
+              }`}
+              aria-label="Jasa Cetak percentage"
+            />
+            <span className="opacity-70">%</span>
+          </div>
+
           {/* Edit / Done toggle */}
           <button
             onClick={toggleEditMode}

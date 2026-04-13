@@ -2,9 +2,10 @@ import { useMemo } from 'react'
 import { TrendingUp, Printer, DollarSign, Receipt } from 'lucide-react'
 import useStore from '../store/useStore'
 import { formatCurrency } from '../utils/formatters'
+import { formatPrintingFeeRateLabel } from '../utils/printingFeeEngine'
 
 export default function SummaryCard() {
-  const { parsedItems, printingFee, darkMode } = useStore()
+  const { parsedItems, printingFee, darkMode, printingFeeRate } = useStore()
 
   const subtotal = useMemo(() => {
     return parsedItems
@@ -62,7 +63,7 @@ export default function SummaryCard() {
             </div>
             <div>
               <p className={`text-sm font-medium ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
-                Printing Fee <span className="font-normal opacity-75">(10%)</span>
+                Printing Fee <span className="font-normal opacity-75">({formatPrintingFeeRateLabel(printingFeeRate)})</span>
               </p>
               <p className={`text-xs ${darkMode ? 'text-orange-500' : 'text-orange-400'}`}>
                 Based on {printableCount} printable item{printableCount !== 1 ? 's' : ''}

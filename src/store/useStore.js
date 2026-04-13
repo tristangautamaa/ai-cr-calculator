@@ -1,10 +1,11 @@
 import { create } from 'zustand'
-import { calculatePrintingFee } from '../utils/printingFeeEngine'
+import { calculatePrintingFee, PRINTING_FEE_RATE } from '../utils/printingFeeEngine'
 
 const useStore = create((set) => ({
   rawInput: '',
   parsedItems: [],
   printingFee: 0,
+  printingFeeRate: PRINTING_FEE_RATE,
   darkMode: false,
   editMode: false,
   vendors: [{ id: 'vendor_1', name: 'Vendor 1' }],
@@ -13,6 +14,21 @@ const useStore = create((set) => ({
   setRawInput: (value) => set({ rawInput: value }),
   setParsedItems: (items) => set({ parsedItems: items }),
   setPrintingFee: (fee) => set({ printingFee: fee }),
+  setPrintingFeeRate: (rate) =>
+    set((state) => {
+      const nextRate = Number.isFinite(rate) ? Math.max(rate, 0) : state.printingFeeRate
+      const nonFeeItems = state.parsedItems.filter((item) => !item.isPrintingFee)
+      const fee = calculatePrintingFee(nonFeeItems, nextRate)
+      const finalItems = state.parsedItems.map((item) =>
+        item.isPrintingFee ? { ...item, total: fee } : item
+      )
+
+      return {
+        printingFeeRate: nextRate,
+        printingFee: fee,
+        parsedItems: finalItems,
+      }
+    }),
   toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
   toggleEditMode: () => set((state) => ({ editMode: !state.editMode })),
   clearAll: () => set({ rawInput: '', parsedItems: [], printingFee: 0, editMode: false, vendorNamesByCategory: {} }),
@@ -40,7 +56,7 @@ const useStore = create((set) => ({
       })
       // Sync the printing fee row total
       const nonFeeItems = updatedItems.filter((i) => !i.isPrintingFee)
-      const fee = calculatePrintingFee(nonFeeItems)
+      const fee = calculatePrintingFee(nonFeeItems, state.printingFeeRate)
       const finalItems = updatedItems.map((item) =>
         item.isPrintingFee ? { ...item, total: fee } : item
       )

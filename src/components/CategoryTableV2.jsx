@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight, AlertTriangle, X } from 'lucide-react'
 import { formatCurrency } from '../utils/formatters'
-import { calculateCategoryPrintingFee } from '../utils/printingFeeEngine'
+import { calculateCategoryPrintingFee, formatPrintingFeeRateLabel } from '../utils/printingFeeEngine'
 import { ALL_CATEGORIES } from '../utils/categoryEngine'
 import useStore from '../store/useStore'
 
@@ -33,7 +33,7 @@ function EditableNumber({ value, onCommit, className }) {
 }
 
 export default function CategoryTableV2({ category, items, darkMode, editMode, vendors }) {
-  const { updateItem, updateVendorData, deleteVendor, updateCategoryVendorName, vendorNamesByCategory } = useStore()
+  const { updateItem, updateVendorData, deleteVendor, updateCategoryVendorName, vendorNamesByCategory, printingFeeRate } = useStore()
   const [collapsed, setCollapsed] = useState(false)
   const [editingVendorId, setEditingVendorId] = useState(null)
   const [vendorDraft, setVendorDraft] = useState('')
@@ -47,7 +47,7 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
   const missingJasaCetak = hasPrintable && !hasJasaCetak
 
   const getComputedPrintingFee = (vendorId = 'vendor_1') => (
-    hasPrintable ? calculateCategoryPrintingFee(items, vendorId) : 0
+    hasPrintable ? calculateCategoryPrintingFee(items, vendorId, printingFeeRate) : 0
   )
 
   const getVendorCategoryTotal = (vendorId) => {
@@ -121,7 +121,7 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
           </span>
           {hasPrintable && (
             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${darkMode ? 'bg-orange-900 text-orange-300' : 'bg-orange-100 text-orange-700'}`}>
-              Jasa Cetak {formatCurrency(computedPrintingFee)}
+              Jasa Cetak {formatCurrency(computedPrintingFee)} ({formatPrintingFeeRateLabel(printingFeeRate)})
             </span>
           )}
           {missingJasaCetak && (
@@ -271,7 +271,7 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                         )}
                       </div>
 
-                      {editMode && (
+                      {editMode && !item.isJasaCetak && (
                         <select
                           value={item.category}
                           onChange={(e) => updateItem(item.id, { category: e.target.value })}
@@ -351,7 +351,7 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
               {missingJasaCetak && (
                 <tr className={`border-t ${darkMode ? 'border-orange-700 bg-orange-900/20' : 'border-orange-200 bg-orange-50'}`}>
                   <td colSpan={2} className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                    Computed Jasa Cetak (10%)
+                    Computed Jasa Cetak ({formatPrintingFeeRateLabel(printingFeeRate)})
                   </td>
                   {vendors?.map((vendor) => (
                     <React.Fragment key={`jasa-cetak-${vendor.id}`}>

@@ -5,6 +5,10 @@ const PRINTABLE_KEYWORDS = ['STICKER', 'PRINT', 'CETAK', 'LABEL', 'FORM', 'GRAFI
 
 export const PRINTING_FEE_RATE = 0.10
 
+export function formatPrintingFeeRateLabel(rate = PRINTING_FEE_RATE) {
+  return `${Number((rate * 100).toFixed(2)).toString()}%`
+}
+
 /**
  * Determine if a line item is a "Jasa Cetak" (printing service) entry.
  * @param {string} name
@@ -31,11 +35,11 @@ export function isPrintable(name) {
  * @param {Array} items - parsed item objects
  * @returns {number} printing fee amount
  */
-export function calculatePrintingFee(items) {
+export function calculatePrintingFee(items, rate = PRINTING_FEE_RATE) {
   const printingBase = items
     .filter((item) => item.printable)
     .reduce((sum, item) => sum + item.total, 0)
-  return Math.round(printingBase * PRINTING_FEE_RATE)
+  return Math.round(printingBase * rate)
 }
 
 /**
@@ -45,7 +49,7 @@ export function calculatePrintingFee(items) {
  * @param {string} vendorId
  * @returns {number}
  */
-export function calculateCategoryPrintingFee(categoryItems, vendorId = 'vendor_1') {
+export function calculateCategoryPrintingFee(categoryItems, vendorId = 'vendor_1', rate = PRINTING_FEE_RATE) {
   const base = categoryItems
     .filter((item) => item.printable)
     .reduce((sum, item) => {
@@ -54,7 +58,7 @@ export function calculateCategoryPrintingFee(categoryItems, vendorId = 'vendor_1
         : (item.vendorData?.[vendorId]?.total ?? 0)
       return sum + lineTotal
     }, 0)
-  return Math.round(base * PRINTING_FEE_RATE)
+  return Math.round(base * rate)
 }
 
 /**

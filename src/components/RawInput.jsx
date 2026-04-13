@@ -12,7 +12,7 @@ false\t20\t343\t[343] ALBATROS LAMINASI MATTE (LPJ)\t\t5.500\tM2\t167000\t918500
 false\t30\t7706\tJASA PASANG GRAFIS DEKOR\t\t13.000\tEA\t250000\t3250000`
 
 export default function RawInput() {
-  const { rawInput, setRawInput, setParsedItems, setPrintingFee, clearAll, darkMode } = useStore()
+  const { rawInput, setRawInput, setParsedItems, setPrintingFee, clearAll, darkMode, printingFeeRate } = useStore()
   const [error, setError] = useState('')
 
   function handleParse() {
@@ -29,7 +29,7 @@ export default function RawInput() {
         return
       }
 
-      const fee = calculatePrintingFee(items)
+      const fee = calculatePrintingFee(items, printingFeeRate)
       const feeRow = createPrintingFeeRow(fee)
 
       setParsedItems([...items, feeRow])
