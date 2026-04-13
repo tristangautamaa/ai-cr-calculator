@@ -33,7 +33,7 @@ function EditableNumber({ value, onCommit, className }) {
 }
 
 export default function CategoryTableV2({ category, items, darkMode, editMode, vendors }) {
-  const { updateItem, updateVendorData, deleteVendor, updateCategoryVendorName, vendorNamesByCategory, printingFeeRate } = useStore()
+  const { updateItem, updateVendorData, deleteVendor, updateCategoryVendorName, updateJasaCetakRate, vendorNamesByCategory, printingFeeRate } = useStore()
   const [collapsed, setCollapsed] = useState(false)
   const [editingVendorId, setEditingVendorId] = useState(null)
   const [vendorDraft, setVendorDraft] = useState('')
@@ -254,7 +254,7 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                                 : 'bg-gray-100 text-gray-400 border-gray-300 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200'
                             }`}
                           >
-                            PRINT {item.printable ? 'Yes' : '+'}
+                            PRINT {item.printable ? '' : '+'}
                           </button>
                         )}
 
@@ -271,7 +271,7 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                         )}
                       </div>
 
-                      {editMode && !item.isJasaCetak && (
+                      {editMode && (
                         <select
                           value={item.category}
                           onChange={(e) => updateItem(item.id, { category: e.target.value })}
@@ -287,22 +287,64 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                   </td>
 
                   <td className={`px-4 py-2.5 text-sm align-top ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {item.unit}
+                    {!item.isJasaCetak && item.unit}
                   </td>
 
                   {vendors?.map((vendor) => {
                     const isVendor1 = vendor.id === 'vendor_1'
-                    const computedFeeForVendor = getComputedPrintingFee(vendor.id)
-                    const vendorItem = item.isJasaCetak
-                      ? { quantity: 1, price: computedFeeForVendor, total: computedFeeForVendor }
-                      : isVendor1
-                        ? { quantity: item.quantity, price: item.price, total: item.total }
-                        : item.vendorData?.[vendor.id] || { quantity: 0, price: 0, total: 0 }
+
+                    if (item.isJasaCetak) {
+                      // For jasa cetak items, calculate fee using the item's own rate
+                      const rate = item.jasaCetakRate ?? printingFeeRate
+                      const baseTotal = vendor.id === 'vendor_1'
+                        ? regularItems.reduce((sum, i) => sum + (i.total ?? 0), 0)
+                        : regularItems.reduce((sum, i) => sum + (i.vendorData?.[vendor.id]?.total ?? 0), 0)
+                      const computedFee = Math.round(baseTotal * rate)
+                      const isFirstVendor = vendor.id === vendors[0]?.id
+
+                      return (
+                        <React.Fragment key={`${item.id}-${vendor.id}`}>
+                          <td className={`px-4 py-2.5 text-right text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {isFirstVendor && editMode ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={String((item.jasaCetakRate * 100).toFixed(2))}
+                                  onChange={(e) => {
+                                    const percent = parseFloat(e.target.value) || 0
+                                    updateJasaCetakRate(item.id, Math.max(percent, 0) / 100)
+                                  }}
+                                  className={`w-16 rounded border px-2 py-1 text-right text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 ${
+                                    darkMode
+                                      ? 'bg-gray-900 border-gray-600 text-gray-200'
+                                      : 'bg-white border-gray-300 text-gray-700'
+                                  }`}
+                                />
+                                <span className="text-xs opacity-70">%</span>
+                              </div>
+                            ) : isFirstVendor && !editMode ? (
+                              `${(item.jasaCetakRate * 100).toFixed(1)}%`
+                            ) : null}
+                          </td>
+                          <td></td>
+                          <td className={`px-4 py-2.5 text-right text-sm font-medium ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                            {formatCurrency(computedFee)}
+                          </td>
+                        </React.Fragment>
+                      )
+                    }
+
+                    // Regular items
+                    const vendorItem = isVendor1
+                      ? { quantity: item.quantity, price: item.price, total: item.total }
+                      : item.vendorData?.[vendor.id] || { quantity: 0, price: 0, total: 0 }
 
                     return (
                       <React.Fragment key={`${item.id}-${vendor.id}`}>
                         <td className={`px-4 py-2.5 text-right text-sm font-mono ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {editMode && !item.isJasaCetak ? (
+                          {editMode ? (
                             <EditableNumber
                               value={vendorItem.quantity}
                               onCommit={(value) => (
@@ -318,11 +360,7 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                         </td>
 
                         <td className={`px-4 py-2.5 text-right text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          {item.isJasaCetak ? (
-                            <span className={`font-medium ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
-                              {formatCurrency(vendorItem.price)}
-                            </span>
-                          ) : editMode ? (
+                          {editMode ? (
                             <EditableNumber
                               value={vendorItem.price ?? 0}
                               onCommit={(value) => (

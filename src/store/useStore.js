@@ -63,6 +63,13 @@ const useStore = create((set) => ({
       return { parsedItems: finalItems, printingFee: fee }
     }),
 
+  updateJasaCetakRate: (id, rate) =>
+    set((state) => ({
+      parsedItems: state.parsedItems.map((item) =>
+        item.id === id ? { ...item, jasaCetakRate: rate } : item
+      ),
+    })),
+
   updateVendorData: (id, vendorId, changes) =>
     set((state) => {
       const updatedItems = state.parsedItems.map((item) => {

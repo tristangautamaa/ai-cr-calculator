@@ -49,9 +49,6 @@ export function parseTicketData(raw) {
     .filter((l) => l.length > 0)
 
   const items = []
-  // Track the most recently seen non-JASA-CETAK category so we can
-  // assign JASA CETAK lines to the category they belong to.
-  let lastCategory = DEFAULT_CATEGORY
 
   for (const line of lines) {
     const columns = line.split('\t')
@@ -74,9 +71,8 @@ export function parseTicketData(raw) {
     if (!name) continue
 
     const jasaCetak = isJasaCetak(name)
-    // JASA CETAK lines inherit the last seen category; regular items classify normally
-    const category = jasaCetak ? lastCategory : classifyItem(name)
-    if (!jasaCetak) lastCategory = category
+    // JASA CETAK items go to their home "JASA CETAK" category; regular items classify normally
+    const category = jasaCetak ? 'JASA CETAK' : classifyItem(name)
 
     const printable = isPrintable(name)
 
@@ -92,62 +88,10 @@ export function parseTicketData(raw) {
       printable,
       isPrintingFee: false,
       isJasaCetak: jasaCetak,
+      jasaCetakRate: jasaCetak ? 0.10 : undefined,
     })
   }
 
-  return redistributeJasaCetak(items)
+  return items
 }
 
-/**
- * Enforce max 1 JASA CETAK line per category.
- *
- * After positional assignment, duplicates can occur when multiple JASA CETAK
- * lines appear back-to-back (they all inherit the same lastCategory).
- * This redistributes extras to categories that have printable items but no
- * JASA CETAK yet, in the order those categories first appear. Truly excess
- * JASA CETAK lines (more than the number of printable categories) are dropped.
- *
- * @param {Array} items
- * @returns {Array}
- */
-function redistributeJasaCetak(items) {
-  const regularItems = items.filter((i) => !i.isJasaCetak)
-  const jasaCetakItems = items.filter((i) => i.isJasaCetak)
-
-  if (jasaCetakItems.length === 0) return items
-
-  // Categories with printable items, in first-appearance order
-  const printableCategoriesOrdered = []
-  const seen = new Set()
-  for (const item of regularItems) {
-    if (item.printable && !seen.has(item.category)) {
-      printableCategoriesOrdered.push(item.category)
-      seen.add(item.category)
-    }
-  }
-
-  // Assign at most one JASA CETAK per category; extras try to fill unassigned ones
-  const assigned = new Set()
-  const result = [...regularItems]
-  const leftovers = []
-
-  for (const jc of jasaCetakItems) {
-    if (!assigned.has(jc.category)) {
-      assigned.add(jc.category)
-      result.push(jc)
-    } else {
-      leftovers.push(jc)
-    }
-  }
-
-  for (const jc of leftovers) {
-    const target = printableCategoriesOrdered.find((cat) => !assigned.has(cat))
-    if (target) {
-      assigned.add(target)
-      result.push({ ...jc, category: target })
-    }
-    // else: truly excess — discard
-  }
-
-  return result
-}
