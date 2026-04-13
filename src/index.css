@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-blue: #0C4DA2;
+  --color-brand-sky: #2F80ED;
+  --color-brand-orange: #F2994A;
+  --color-brand-red: #EB5757;
+  --background-image-brand-gradient: linear-gradient(135deg, #0C4DA2 0%, #2F80ED 50%, #F2994A 100%);
+}
+
+@layer base {
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+@layer components {
+  .print-tag {
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700 ml-1;
+  }
+}
