@@ -321,9 +321,11 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                     const isVendor1 = vendor.id === 'vendor_1'
 
                     if (item.isJasaCetak) {
-                      // For jasa cetak items, calculate fee using the item's own rate and GLOBAL printable totals
+                      // For jasa cetak items, calculate fee using the item's own rate and CATEGORY printable totals only
                       const rate = item.jasaCetakRate ?? printingFeeRate
-                      const baseTotal = globalPrintableByVendor[vendor.id] ?? 0
+                      const baseTotal = vendor.id === 'vendor_1'
+                        ? regularItems.reduce((sum, i) => sum + (i.total ?? 0), 0)
+                        : regularItems.reduce((sum, i) => sum + (i.vendorData?.[vendor.id]?.total ?? 0), 0)
                       const computedFee = Math.round(baseTotal * rate)
                       const isFirstVendor = vendor.id === vendors[0]?.id
 
