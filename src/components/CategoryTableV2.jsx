@@ -429,34 +429,6 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
             </tbody>
 
             <tfoot>
-              {(hasJasaCetak || hasGlobalJasaCetak) && category !== 'JASA CETAK' && (
-                <tr className={`border-t ${darkMode ? 'border-orange-700 bg-orange-900/20' : 'border-orange-200 bg-orange-50'}`}>
-                  <td colSpan={2} className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                    Jasa Cetak Allocation ({formatPrintingFeeRateLabel(jasaCetakItems[0]?.jasaCetakRate ?? printingFeeRate)})
-                  </td>
-                  {vendors?.map((vendor) => {
-                    const allocationTotal = regularItems.reduce((sum, item) => {
-                      if (item.printable) {
-                        return sum + getJasaCetakAllocation(item, vendor.id)
-                      }
-                      return sum
-                    }, 0)
-                    return (
-                      <React.Fragment key={`allocation-${vendor.id}`}>
-                        <td className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                          -
-                        </td>
-                        <td className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                          -
-                        </td>
-                        <td className={`px-4 py-2 text-right text-sm font-bold ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
-                          {formatCurrency(allocationTotal)}
-                        </td>
-                      </React.Fragment>
-                    )
-                  })}
-                </tr>
-              )}
               <tr className={`border-t ${darkMode ? 'border-gray-600 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
                 <td colSpan={2} className={`px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Category Total
