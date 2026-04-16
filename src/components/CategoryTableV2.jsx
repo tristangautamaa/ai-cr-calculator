@@ -411,10 +411,10 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                           {item.printable && !item.isJasaCetak && (hasJasaCetak || hasGlobalJasaCetak) ? (
                             <div>
                               <div className="font-medium">
-                                {formatCurrency(vendorItem.total - getJasaCetakAllocation(item, vendor.id))}
+                                {formatCurrency(vendorItem.total)}
                               </div>
-                              <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                − {formatCurrency(getJasaCetakAllocation(item, vendor.id))} jasa cetak
+                              <div className={`text-xs ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                                {formatCurrency(vendorItem.total - getJasaCetakAllocation(item, vendor.id))} net
                               </div>
                             </div>
                           ) : (
@@ -455,26 +455,6 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                       </React.Fragment>
                     )
                   })}
-                </tr>
-              )}
-              {missingJasaCetak && (
-                <tr className={`border-t ${darkMode ? 'border-orange-700 bg-orange-900/20' : 'border-orange-200 bg-orange-50'}`}>
-                  <td colSpan={2} className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                    Computed Jasa Cetak ({formatPrintingFeeRateLabel(printingFeeRate)})
-                  </td>
-                  {vendors?.map((vendor) => (
-                    <React.Fragment key={`jasa-cetak-${vendor.id}`}>
-                      <td className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                        -
-                      </td>
-                      <td className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                        -
-                      </td>
-                      <td className={`px-4 py-2 text-right text-sm font-bold ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
-                        {formatCurrency(getComputedPrintingFee(vendor.id))}
-                      </td>
-                    </React.Fragment>
-                  ))}
                 </tr>
               )}
               <tr className={`border-t ${darkMode ? 'border-gray-600 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
