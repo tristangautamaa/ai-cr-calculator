@@ -187,17 +187,51 @@ export default function ResultTable() {
         </div>
       </div>
 
-      {/* One table per category */}
-      {Object.entries(groupedItems).map(([category, items]) => (
-        <CategoryTable
-          key={category}
-          category={category}
-          items={items}
-          darkMode={darkMode}
-          editMode={editMode}
-          vendors={vendors}
-        />
-      ))}
+      {/* Calculate global printable totals for jasa cetak fee calculation */}
+      {useMemo(() => {
+        const globalPrintableByVendor = {}
+        regularItems.forEach((item) => {
+          if (item.printable) {
+            if (!globalPrintableByVendor['vendor_1']) globalPrintableByVendor['vendor_1'] = 0
+            globalPrintableByVendor['vendor_1'] += item.total ?? 0
+
+            // Add vendor data totals
+            if (item.vendorData) {
+              Object.entries(item.vendorData).forEach(([vendorId, data]) => {
+                if (!globalPrintableByVendor[vendorId]) globalPrintableByVendor[vendorId] = 0
+                globalPrintableByVendor[vendorId] += data.total ?? 0
+              })
+            }
+          }
+        })
+
+        // Check if there are any jasa cetak items globally
+        const hasGlobalJasaCetak = regularItems.some((item) => item.isJasaCetak)
+
+        // Sort categories so JASA CETAK is always last
+        const sortedCategories = Object.entries(groupedItems).sort(([catA], [catB]) => {
+          if (catA === 'JASA CETAK') return 1
+          if (catB === 'JASA CETAK') return -1
+          return 0
+        })
+
+        return (
+          <>
+            {sortedCategories.map(([category, items]) => (
+              <CategoryTable
+                key={category}
+                category={category}
+                items={items}
+                darkMode={darkMode}
+                editMode={editMode}
+                vendors={vendors}
+                globalPrintableByVendor={globalPrintableByVendor}
+                hasGlobalJasaCetak={hasGlobalJasaCetak}
+              />
+            ))}
+          </>
+        )
+      }, [regularItems, groupedItems, darkMode, editMode, vendors])}
     </div>
   )
 }

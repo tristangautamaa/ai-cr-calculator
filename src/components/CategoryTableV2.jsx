@@ -32,7 +32,7 @@ function EditableNumber({ value, onCommit, className }) {
   )
 }
 
-export default function CategoryTableV2({ category, items, darkMode, editMode, vendors }) {
+export default function CategoryTableV2({ category, items, darkMode, editMode, vendors, globalPrintableByVendor = {}, hasGlobalJasaCetak = false }) {
   const { updateItem, updateVendorData, deleteVendor, updateCategoryVendorName, updateJasaCetakRate, vendorNamesByCategory, printingFeeRate } = useStore()
   const [collapsed, setCollapsed] = useState(false)
   const [editingVendorId, setEditingVendorId] = useState(null)
@@ -44,18 +44,45 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
 
   const hasPrintable = regularItems.some((item) => item.printable)
   const hasJasaCetak = jasaCetakItems.length > 0
-  const missingJasaCetak = hasPrintable && !hasJasaCetak
+  const missingJasaCetak = hasPrintable && !hasJasaCetak && !hasGlobalJasaCetak
 
   const getComputedPrintingFee = (vendorId = 'vendor_1') => (
     hasPrintable ? calculateCategoryPrintingFee(items, vendorId, printingFeeRate) : 0
   )
+
+  const getJasaCetakAllocation = (item, vendorId) => {
+    if (!item.printable || item.isJasaCetak) return 0
+
+    const itemTotal = vendorId === 'vendor_1'
+      ? (item.total ?? 0)
+      : (item.vendorData?.[vendorId]?.total ?? 0)
+
+    // Find the applicable jasa cetak rate for this category
+    const jasaCetakRate = jasaCetakItems.length > 0
+      ? (jasaCetakItems[0]?.jasaCetakRate ?? printingFeeRate)
+      : printingFeeRate
+
+    return Math.round(itemTotal * jasaCetakRate)
+  }
 
   const getVendorCategoryTotal = (vendorId) => {
     const baseTotal = vendorId === 'vendor_1'
       ? regularItems.reduce((sum, item) => sum + (item.total ?? 0), 0)
       : regularItems.reduce((sum, item) => sum + (item.vendorData?.[vendorId]?.total ?? 0), 0)
 
-    return baseTotal + getComputedPrintingFee(vendorId)
+    // For JASA CETAK category: calculate fees from global printable totals
+    // For other categories: show base total (jasa cetak fees are shown separately in JASA CETAK category)
+    if (category === 'JASA CETAK') {
+      const globalBase = globalPrintableByVendor[vendorId] ?? 0
+      const jasaCetakFees = jasaCetakItems.reduce((sum, item) => {
+        const rate = item.jasaCetakRate ?? printingFeeRate
+        const fee = Math.round(globalBase * rate)
+        return sum + fee
+      }, 0)
+      return jasaCetakFees
+    }
+
+    return baseTotal
   }
 
   const headerTotal = getVendorCategoryTotal('vendor_1')
@@ -219,7 +246,7 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                   {vendors.map((vendor) => (
                     <React.Fragment key={`${vendor.id}-sub`}>
                       <th className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>Qty</th>
-                      <th className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>Price</th>
+                      <th className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>Unit Price</th>
                       <th className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wider ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>Total</th>
                     </React.Fragment>
                   ))}
@@ -247,20 +274,20 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                         {!item.isJasaCetak && editMode && (
                           <button
                             onClick={() => updateItem(item.id, { printable: !item.printable })}
-                            title={item.printable ? 'Click to remove print flag' : 'Click to mark as printable'}
+                            title={item.printable ? 'Click to remove jasa cetak flag' : 'Click to mark as jasa cetak eligible'}
                             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold transition-colors border ${
                               item.printable
                                 ? 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200'
                                 : 'bg-gray-100 text-gray-400 border-gray-300 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200'
                             }`}
                           >
-                            PRINT {item.printable ? '' : '+'}
+                            JASA CETAK {item.printable ? '' : '+'}
                           </button>
                         )}
 
                         {!item.isJasaCetak && !editMode && item.printable && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-orange-100 text-orange-700">
-                            PRINT
+                            JASA CETAK
                           </span>
                         )}
 
@@ -294,11 +321,9 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                     const isVendor1 = vendor.id === 'vendor_1'
 
                     if (item.isJasaCetak) {
-                      // For jasa cetak items, calculate fee using the item's own rate
+                      // For jasa cetak items, calculate fee using the item's own rate and GLOBAL printable totals
                       const rate = item.jasaCetakRate ?? printingFeeRate
-                      const baseTotal = vendor.id === 'vendor_1'
-                        ? regularItems.reduce((sum, i) => sum + (i.total ?? 0), 0)
-                        : regularItems.reduce((sum, i) => sum + (i.vendorData?.[vendor.id]?.total ?? 0), 0)
+                      const baseTotal = globalPrintableByVendor[vendor.id] ?? 0
                       const computedFee = Math.round(baseTotal * rate)
                       const isFirstVendor = vendor.id === vendors[0]?.id
 
@@ -371,12 +396,30 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                               className={inputClass}
                             />
                           ) : (
-                            formatCurrency(vendorItem.price)
+                            <>
+                              <div>{formatCurrency(vendorItem.price)}</div>
+                              {item.printable && !item.isJasaCetak && (hasJasaCetak || hasGlobalJasaCetak) && (
+                                <div className={`text-xs ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                                  {formatCurrency(vendorItem.price - Math.round((vendorItem.price * (jasaCetakItems[0]?.jasaCetakRate ?? printingFeeRate))))} net
+                                </div>
+                              )}
+                            </>
                           )}
                         </td>
 
-                        <td className={`px-4 py-2.5 text-right text-sm font-medium ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-                          {formatCurrency(vendorItem.total)}
+                        <td className={`px-4 py-2.5 text-right text-sm ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                          {item.printable && !item.isJasaCetak && (hasJasaCetak || hasGlobalJasaCetak) ? (
+                            <div>
+                              <div className="font-medium">
+                                {formatCurrency(vendorItem.total - getJasaCetakAllocation(item, vendor.id))}
+                              </div>
+                              <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                − {formatCurrency(getJasaCetakAllocation(item, vendor.id))} jasa cetak
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="font-medium">{formatCurrency(vendorItem.total)}</div>
+                          )}
                         </td>
                       </React.Fragment>
                     )
@@ -386,6 +429,34 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
             </tbody>
 
             <tfoot>
+              {(hasJasaCetak || hasGlobalJasaCetak) && category !== 'JASA CETAK' && (
+                <tr className={`border-t ${darkMode ? 'border-orange-700 bg-orange-900/20' : 'border-orange-200 bg-orange-50'}`}>
+                  <td colSpan={2} className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                    Jasa Cetak Allocation ({formatPrintingFeeRateLabel(jasaCetakItems[0]?.jasaCetakRate ?? printingFeeRate)})
+                  </td>
+                  {vendors?.map((vendor) => {
+                    const allocationTotal = regularItems.reduce((sum, item) => {
+                      if (item.printable) {
+                        return sum + getJasaCetakAllocation(item, vendor.id)
+                      }
+                      return sum
+                    }, 0)
+                    return (
+                      <React.Fragment key={`allocation-${vendor.id}`}>
+                        <td className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                          -
+                        </td>
+                        <td className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                          -
+                        </td>
+                        <td className={`px-4 py-2 text-right text-sm font-bold ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
+                          {formatCurrency(allocationTotal)}
+                        </td>
+                      </React.Fragment>
+                    )
+                  })}
+                </tr>
+              )}
               {missingJasaCetak && (
                 <tr className={`border-t ${darkMode ? 'border-orange-700 bg-orange-900/20' : 'border-orange-200 bg-orange-50'}`}>
                   <td colSpan={2} className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
@@ -396,8 +467,8 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                       <td className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
                         -
                       </td>
-                      <td className={`px-4 py-2 text-right text-sm font-bold ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
-                        {formatCurrency(getComputedPrintingFee(vendor.id))}
+                      <td className={`px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                        -
                       </td>
                       <td className={`px-4 py-2 text-right text-sm font-bold ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
                         {formatCurrency(getComputedPrintingFee(vendor.id))}

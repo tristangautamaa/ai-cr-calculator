@@ -188,21 +188,21 @@ export default function CategoryTable({ category, items, darkMode, editMode, ven
                         {!item.isJasaCetak && editMode && (
                           <button
                             onClick={() => updateItem(item.id, { printable: !item.printable })}
-                            title={item.printable ? 'Click to remove print flag' : 'Click to mark as printable'}
+                            title={item.printable ? 'Click to remove jasa cetak flag' : 'Click to mark as jasa cetak eligible'}
                             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold transition-colors border ${
                               item.printable
                                 ? 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200'
                                 : 'bg-gray-100 text-gray-400 border-gray-300 hover:bg-orange-50 hover:text-orange-500 hover:border-orange-200'
                             }`}
                           >
-                            PRINT {item.printable ? '✓' : '+'}
+                            JASA CETAK {item.printable ? '✓' : '+'}
                           </button>
                         )}
 
-                        {/* PRINT badge — read-only when not editing */}
+                        {/* JASA CETAK badge — read-only when not editing */}
                         {!item.isJasaCetak && !editMode && item.printable && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-orange-100 text-orange-700">
-                            PRINT
+                            JASA CETAK
                           </span>
                         )}
 
