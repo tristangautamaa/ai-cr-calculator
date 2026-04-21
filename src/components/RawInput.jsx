@@ -6,10 +6,14 @@ import { calculatePrintingFee, createPrintingFeeRow } from '../utils/printingFee
 
 const PLACEHOLDER = `Paste raw ticket data from K2 / PSS here...
 
-Example:
+Supports both old format (9-column) and new format (30+ column):
+
+Old format example:
 false\t10\t4592\t[4592] STICKER RITRAMA LAMINASI MATTE (LPJ)\t\t100.050\tM2\t200000\t20010000
 false\t20\t343\t[343] ALBATROS LAMINASI MATTE (LPJ)\t\t5.500\tM2\t167000\t918500
-false\t30\t7706\tJASA PASANG GRAFIS DEKOR\t\t13.000\tEA\t250000\t3250000`
+false\t30\t7706\tJASA PASANG GRAFIS DEKOR\t\t13.000\tEA\t250000\t3250000
+
+New format: Tab-separated with item name at column 18, qty at 19, unit at 20, price at 23, total at 24`
 
 export default function RawInput() {
   const { rawInput, setRawInput, setParsedItems, setPrintingFee, clearAll, darkMode, printingFeeRate } = useStore()
@@ -25,7 +29,7 @@ export default function RawInput() {
     try {
       const items = parseTicketData(rawInput)
       if (items.length === 0) {
-        setError('No valid rows found. Check that data is tab-separated with at least 9 columns.')
+        setError('No valid rows found. Ensure data is tab-separated. Supports 9-column format or 30+ column format.')
         return
       }
 

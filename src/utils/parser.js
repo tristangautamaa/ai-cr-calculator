@@ -26,18 +26,99 @@ function cleanName(name) {
 }
 
 /**
- * Parse raw tab-separated ticket data from K2/PSS.
- *
+ * Detect format type based on column count
+ * @param {Array} columns
+ * @returns {string} 'old' for 9-column format, 'new' for 30+ column format
+ */
+function detectFormat(columns) {
+  if (columns.length >= 28) return 'new'
+  if (columns.length >= 9) return 'old'
+  return null
+}
+
+/**
+ * Parse new format (30+ columns)
  * Column layout (0-indexed):
- *   0: checkbox (false)
- *   1: line number (10, 20, 30...)
- *   2: item code
- *   3: item name (may include code prefix like [4592])
- *   4: (empty or description)
+ *   18: item name (may include code prefix like [4906])
+ *   19: quantity
+ *   20: unit
+ *   23: unit price
+ *   24: total price
+ *
+ * @param {Array} columns
+ * @returns {Object} parsed item data or null
+ */
+function parseNewFormat(columns) {
+  if (columns.length < 25) return null
+
+  const rawName = columns[18]?.trim() || ''
+  if (!rawName || rawName.toLowerCase() === 'description' || rawName.toLowerCase() === 'name') return null
+
+  const name = cleanName(rawName)
+  const rawQty = columns[19]?.trim() || ''
+  const quantity = parseNumber(rawQty)
+  const unit = columns[20]?.trim() || ''
+  const price = parseNumber(columns[23])
+  const total = parseNumber(columns[24])
+
+  if (!name) return null
+
+  return { name, rawQty, quantity, unit, price, total }
+}
+
+/**
+ * Parse old format (9 columns)
+ * Column layout (0-indexed):
+ *   3: item name
  *   5: quantity
  *   6: unit
  *   7: price per item
  *   8: line total
+ *
+ * @param {Array} columns
+ * @returns {Object} parsed item data or null
+ */
+function parseOldFormat(columns) {
+  if (columns.length < 9) return null
+
+  const rawName = columns[3]?.trim() || ''
+  if (!rawName || rawName.toLowerCase() === 'name' || rawName.toLowerCase() === 'description') return null
+
+  const name = cleanName(rawName)
+  const rawQty = columns[5]?.trim() || ''
+  const quantity = parseNumber(rawQty)
+  const unit = columns[6]?.trim() || ''
+  const price = parseNumber(columns[7])
+  const total = parseNumber(columns[8])
+
+  if (!name) return null
+
+  return { name, rawQty, quantity, unit, price, total }
+}
+
+/**
+ * Sort items by category and then by name to group same items together
+ * @param {Array} items
+ * @returns {Array} sorted items
+ */
+function groupItemsByName(items) {
+  return items.sort((a, b) => {
+    // JASA CETAK always comes last
+    if (a.isJasaCetak && !b.isJasaCetak) return 1
+    if (!a.isJasaCetak && b.isJasaCetak) return -1
+    if (a.isJasaCetak && b.isJasaCetak) return a.name.localeCompare(b.name)
+
+    // Sort by name to group same items together
+    return a.name.localeCompare(b.name)
+  })
+}
+
+/**
+ * Parse raw tab-separated ticket data from K2/PSS.
+ *
+ * Supports two formats:
+ * - Old format (9 columns): checkbox, line, code, name, desc, qty, unit, price, total
+ * - New format (30+ columns): with name at col 18, qty at 19, unit at 20, prices at 23/26
  *
  * @param {string} raw - pasted text from K2/PSS
  * @returns {Array} parsed items
@@ -52,28 +133,22 @@ export function parseTicketData(raw) {
 
   for (const line of lines) {
     const columns = line.split('\t')
+    const format = detectFormat(columns)
 
-    // Need at least 9 columns
-    if (columns.length < 9) continue
+    if (!format) continue
 
-    // Skip header rows
-    const col3 = columns[3]?.trim() || ''
-    if (!col3 || col3.toLowerCase() === 'name' || col3.toLowerCase() === 'description') continue
+    let parsed = null
+    if (format === 'new') {
+      parsed = parseNewFormat(columns)
+    } else {
+      parsed = parseOldFormat(columns)
+    }
 
-    const rawName = col3
-    const name = cleanName(rawName)
-    const rawQty = columns[5]?.trim() || ''   // keep original string for display
-    const quantity = parseNumber(rawQty)
-    const unit = columns[6]?.trim() || ''
-    const price = parseNumber(columns[7])
-    const total = parseNumber(columns[8])
+    if (!parsed) continue
 
-    if (!name) continue
-
+    const { name, rawQty, quantity, unit, price, total } = parsed
     const jasaCetak = isJasaCetak(name)
-    // JASA CETAK items go to their home "JASA CETAK" category; regular items classify normally
     const category = jasaCetak ? 'JASA CETAK' : classifyItem(name)
-
     const printable = isPrintable(name)
 
     items.push({
@@ -92,6 +167,7 @@ export function parseTicketData(raw) {
     })
   }
 
-  return items
+  // Group items by name so duplicates appear together
+  return groupItemsByName(items)
 }
 
