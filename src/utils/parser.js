@@ -161,7 +161,9 @@ export function parseTicketData(raw) {
 
     if (!parsed) continue
 
-    const { name, rawQty, quantity, unit, price, total, vendor2 } = parsed
+    const { name: rawParsedName, rawQty, quantity, unit, price, total, vendor2 } = parsed
+    const name = rawParsedName?.trim() || ''
+    if (!name) continue
     const jasaCetak = isJasaCetak(name)
     const category = jasaCetak ? 'JASA CETAK' : classifyItem(name)
     const printable = isPrintable(name)

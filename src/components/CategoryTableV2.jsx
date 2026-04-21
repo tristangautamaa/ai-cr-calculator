@@ -398,30 +398,12 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
                               className={inputClass}
                             />
                           ) : (
-                            <>
-                              <div>{formatCurrency(vendorItem.price)}</div>
-                              {item.printable && !item.isJasaCetak && (hasJasaCetak || hasGlobalJasaCetak) && (
-                                <div className={`text-xs ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                                  {formatCurrency(vendorItem.price - Math.round((vendorItem.price * (jasaCetakItems[0]?.jasaCetakRate ?? printingFeeRate))))} net
-                                </div>
-                              )}
-                            </>
+                            <div>{formatCurrency(vendorItem.price)}</div>
                           )}
                         </td>
 
-                        <td className={`px-4 py-2.5 text-right text-sm ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-                          {item.printable && !item.isJasaCetak && (hasJasaCetak || hasGlobalJasaCetak) ? (
-                            <div>
-                              <div className="font-medium">
-                                {formatCurrency(vendorItem.total)}
-                              </div>
-                              <div className={`text-xs ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                                {formatCurrency(vendorItem.total - getJasaCetakAllocation(item, vendor.id))} net
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="font-medium">{formatCurrency(vendorItem.total)}</div>
-                          )}
+                        <td className={`px-4 py-2.5 text-right text-sm font-medium ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                          {formatCurrency(vendorItem.total)}
                         </td>
                       </React.Fragment>
                     )
