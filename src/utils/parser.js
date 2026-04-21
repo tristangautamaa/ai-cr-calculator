@@ -42,8 +42,10 @@ function detectFormat(columns) {
  *   18: item name (may include code prefix like [4906])
  *   19: quantity
  *   20: unit
- *   23: unit price
- *   24: total price
+ *   23: vendor 1 unit price
+ *   24: vendor 1 total price
+ *   25: vendor 2 unit price (optional)
+ *   26: vendor 2 total price (optional)
  *
  * @param {Array} columns
  * @returns {Object} parsed item data or null
@@ -63,7 +65,20 @@ function parseNewFormat(columns) {
 
   if (!name) return null
 
-  return { name, rawQty, quantity, unit, price, total }
+  // Check for vendor 2 data (columns 25-26)
+  const vendor2Price = columns.length > 25 ? parseNumber(columns[25]) : 0
+  const vendor2Total = columns.length > 26 ? parseNumber(columns[26]) : 0
+  const hasVendor2 = vendor2Price > 0 || vendor2Total > 0
+
+  return {
+    name,
+    rawQty,
+    quantity,
+    unit,
+    price,
+    total,
+    vendor2: hasVendor2 ? { price: vendor2Price, total: vendor2Total } : null
+  }
 }
 
 /**
@@ -146,12 +161,12 @@ export function parseTicketData(raw) {
 
     if (!parsed) continue
 
-    const { name, rawQty, quantity, unit, price, total } = parsed
+    const { name, rawQty, quantity, unit, price, total, vendor2 } = parsed
     const jasaCetak = isJasaCetak(name)
     const category = jasaCetak ? 'JASA CETAK' : classifyItem(name)
     const printable = isPrintable(name)
 
-    items.push({
+    const item = {
       id: `item_${items.length}_${Date.now()}`,
       name,
       rawQty,
@@ -164,7 +179,20 @@ export function parseTicketData(raw) {
       isPrintingFee: false,
       isJasaCetak: jasaCetak,
       jasaCetakRate: jasaCetak ? 0.10 : undefined,
-    })
+    }
+
+    // Add vendor 2 data if present
+    if (vendor2) {
+      item.vendorData = {
+        vendor_2: {
+          quantity,
+          price: jasaCetak ? null : vendor2.price,
+          total: jasaCetak ? 0 : vendor2.total,
+        }
+      }
+    }
+
+    items.push(item)
   }
 
   // Group items by name so duplicates appear together

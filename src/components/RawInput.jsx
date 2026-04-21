@@ -16,7 +16,7 @@ false\t30\t7706\tJASA PASANG GRAFIS DEKOR\t\t13.000\tEA\t250000\t3250000
 New format: Tab-separated with item name at column 18, qty at 19, unit at 20, price at 23, total at 24`
 
 export default function RawInput() {
-  const { rawInput, setRawInput, setParsedItems, setPrintingFee, clearAll, darkMode, printingFeeRate } = useStore()
+  const { rawInput, setRawInput, setParsedItems, setPrintingFee, clearAll, darkMode, printingFeeRate, vendors, addVendorWithoutInit } = useStore()
   const [error, setError] = useState('')
 
   function handleParse() {
@@ -31,6 +31,15 @@ export default function RawInput() {
       if (items.length === 0) {
         setError('No valid rows found. Ensure data is tab-separated. Supports 9-column format or 30+ column format.')
         return
+      }
+
+      // Check if items have vendor 2 data and add vendor if needed
+      const hasVendor2Data = items.some(item => item.vendorData?.vendor_2)
+      if (hasVendor2Data) {
+        const hasVendor2 = vendors.some(v => v.id === 'vendor_2')
+        if (!hasVendor2) {
+          addVendorWithoutInit('vendor_2', 'Vendor 2')
+        }
       }
 
       const fee = calculatePrintingFee(items, printingFeeRate)

@@ -109,6 +109,12 @@ const useStore = create((set) => ({
       return { vendors: [...state.vendors, newVendor], parsedItems: updatedItems }
     }),
 
+  addVendorWithoutInit: (vendorId, vendorName) =>
+    set((state) => {
+      const newVendor = { id: vendorId, name: vendorName }
+      return { vendors: [...state.vendors, newVendor] }
+    }),
+
   deleteVendor: (vendorId) =>
     set((state) => {
       if (vendorId === 'vendor_1') return state
