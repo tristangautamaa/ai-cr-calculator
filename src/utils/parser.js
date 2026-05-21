@@ -200,4 +200,3 @@ export function parseTicketData(raw) {
   // Group items by name so duplicates appear together
   return groupItemsByName(items)
 }
-

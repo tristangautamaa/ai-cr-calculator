@@ -122,6 +122,57 @@ export default function CategoryTableV2({ category, items, darkMode, editMode, v
     setVendorDraft('')
   }
 
+  // Simplified card for the JASA CETAK storage category — no table needed
+  if (category === 'JASA CETAK') {
+    return (
+      <div className={`rounded-xl overflow-hidden border shadow-sm ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          className={`w-full flex items-center justify-between px-5 py-3 text-left transition-colors ${darkMode ? 'bg-gray-700 hover:bg-gray-650' : 'bg-gray-100 hover:bg-gray-200'}`}
+        >
+          <div className="flex items-center gap-2">
+            {collapsed ? <ChevronRight className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} /> : <ChevronDown className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />}
+            <span className={`font-semibold text-sm tracking-wide uppercase ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              Jasa Cetak
+            </span>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${darkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
+              {jasaCetakItems.length}
+            </span>
+          </div>
+        </button>
+        {!collapsed && (
+          <div className={`divide-y ${darkMode ? 'divide-gray-700' : 'divide-gray-100'}`}>
+            {jasaCetakItems.map((item) => (
+              <div key={item.id} className={`flex items-center justify-between px-5 py-3 ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
+                <span className="text-sm font-medium">{item.name}</span>
+                <span className="text-sm font-semibold">
+                  {editMode ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={String((item.jasaCetakRate * 100).toFixed(2))}
+                        onChange={(e) => {
+                          const percent = parseFloat(e.target.value) || 0
+                          updateJasaCetakRate(item.id, Math.max(percent, 0) / 100)
+                        }}
+                        className={`w-16 rounded border px-2 py-1 text-right text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 ${darkMode ? 'bg-gray-900 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-700'}`}
+                      />
+                      <span className="text-xs opacity-70">%</span>
+                    </div>
+                  ) : (
+                    `${(item.jasaCetakRate * 100).toFixed(1)}%`
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div
       className={`rounded-xl overflow-hidden border shadow-sm ${

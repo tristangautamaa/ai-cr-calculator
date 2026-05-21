@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Copy, Download, Tag, Pencil, Check } from 'lucide-react'
+import { Copy, Download, Tag, Pencil, Check, Table2 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import useStore from '../store/useStore'
 import CategoryTable from './CategoryTableV2'
+import JasaCetakBreakdownView from './JasaCetakBreakdownView'
+import SummaryCard from './SummaryCard'
 import { calculateCategoryPrintingFee } from '../utils/printingFeeEngine'
 
 function sanitizeSheetName(name, usedNames) {
@@ -28,9 +30,11 @@ function sanitizeSheetName(name, usedNames) {
 export default function ResultTable() {
   const { parsedItems, darkMode, editMode, toggleEditMode, vendors, addVendor, printingFeeRate } = useStore()
   const [copied, setCopied] = useState(false)
+  const [viewMode, setViewMode] = useState('standard')
 
   // Separate regular items from the printing fee row
   const regularItems = parsedItems.filter((i) => !i.isPrintingFee)
+  const hasPrintable = regularItems.some((i) => i.printable)
 
   // Group regular items by category
   const groupedItems = useMemo(() => {
@@ -139,6 +143,23 @@ export default function ResultTable() {
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
 
+          {/* JC Breakdown toggle */}
+          {hasPrintable && (
+            <button
+              onClick={() => setViewMode((v) => (v === 'standard' ? 'breakdown' : 'standard'))}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                viewMode === 'breakdown'
+                  ? 'bg-orange-500 border-orange-500 text-white hover:bg-orange-600'
+                  : darkMode
+                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Table2 className="w-3.5 h-3.5" />
+              {viewMode === 'breakdown' ? 'Standard View' : 'JC Breakdown'}
+            </button>
+          )}
+
           {/* Edit / Done toggle */}
           <button
             onClick={toggleEditMode}
@@ -187,8 +208,19 @@ export default function ResultTable() {
         </div>
       </div>
 
-      {/* Calculate global printable totals for jasa cetak fee calculation */}
+      {/* JC Breakdown view */}
+      {viewMode === 'breakdown' && (
+        <JasaCetakBreakdownView
+          darkMode={darkMode}
+          groupedItems={groupedItems}
+          printingFeeRate={printingFeeRate}
+        />
+      )}
+
+      {/* Standard view: category tables */}
       {useMemo(() => {
+        if (viewMode !== 'standard') return null
+
         const globalPrintableByVendor = {}
         regularItems.forEach((item) => {
           if (item.printable) {
@@ -231,7 +263,9 @@ export default function ResultTable() {
             ))}
           </>
         )
-      }, [regularItems, groupedItems, darkMode, editMode, vendors])}
+      }, [viewMode, regularItems, groupedItems, darkMode, editMode, vendors])}
+
+      {viewMode === 'standard' && <SummaryCard />}
     </div>
   )
 }

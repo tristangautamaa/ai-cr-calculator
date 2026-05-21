@@ -8,16 +8,18 @@ const CATEGORY_RULES = [
   { keywords: ['KARDUS', 'CARTON', 'KARTON'], category: 'KARDUS' },
   { keywords: ['WRAPPING', 'WRAP', 'PLASTIK WRAPPING'], category: 'PLASTIK WRAPPING' },
   { keywords: ['KERTAS', 'PAPER', 'HVS'], category: 'KERTAS' },
-  { keywords: ['LABEL', 'TAG'], category: 'LABEL' },
+  // Specific rules first — these keywords appear as substrings inside common brand names (e.g. "INFORMA" contains "FORM")
+  { keywords: ['METAL SEAL', 'CLICKER'], category: 'METAL SEAL & CLICKER' },
+  { keywords: ['CONT FORM', 'CONT', 'CONTINUOUS'], category: 'CONTINUOUS FORM' },
+  { keywords: ['STICKER', 'LABEL', 'TAG'], category: 'LABEL' },
+  // Broad keyword — must come after specific rules that share substrings
   { keywords: ['FORM', 'CETAKAN', 'FORMULIR'], category: 'FORM FORM CETAKAN' },
-  { keywords: ['CONT FORM', 'CONTINUOUS'], category: 'CONT FORM' },
   { keywords: ['BUBBLE'], category: 'BUBBLE WRAP' },
-  { keywords: ['STICKER', 'GRAFIS', 'DEKOR', 'FLEXY', 'LAMINASI', 'ALBATROS', 'RITRAMA'], category: 'PLASTIK PRODUK INFO' },
+  { keywords: ['GRAFIS', 'DEKOR', 'FLEXY', 'LAMINASI', 'ALBATROS', 'RITRAMA'], category: 'PLASTIK PRODUK INFO' },
   { keywords: ['STRUK', 'THERMAL', 'RECEIPT'], category: 'STRUK THERMAL' },
   { keywords: ['LANYARD', 'YOYO'], category: 'LANYARD & YOYO' },
   { keywords: ['KANCING', 'BUTTON'], category: 'KANCING PI' },
   { keywords: ['RIBBON'], category: 'RIBBON BARCODE' },
-  { keywords: ['METAL SEAL', 'CLICKER', 'SEAL'], category: 'METAL SEAL & CLICKER' },
 ]
 
 export const DEFAULT_CATEGORY = 'ATK GENERAL'
@@ -45,7 +47,7 @@ export const ALL_CATEGORIES = [
   'LABEL',
   'FORM FORM CETAKAN',
   'ATK GENERAL',
-  'CONT FORM',
+  'CONTINUOUS FORM',
   'BUBBLE WRAP',
   'PLASTIK PRODUK INFO',
   'STRUK THERMAL',

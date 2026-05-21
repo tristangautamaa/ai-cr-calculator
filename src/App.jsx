@@ -2,7 +2,6 @@ import useStore from './store/useStore'
 import Header from './components/Header'
 import RawInput from './components/RawInput'
 import ResultTable from './components/ResultTable'
-import SummaryCard from './components/SummaryCard'
 
 export default function App() {
   const { darkMode, parsedItems } = useStore()
@@ -17,10 +16,7 @@ export default function App() {
 
         {/* Results only appear after parsing */}
         {parsedItems.length > 0 && (
-          <>
-            <ResultTable />
-            <SummaryCard />
-          </>
+          <ResultTable />
         )}
 
         {/* Empty state hint */}
