@@ -66,8 +66,31 @@ function DeleteConfirmModal({ vendorName, onCancel, onConfirm, darkMode }) {
 
 // ── Preview Modal ─────────────────────────────────────────────────────────────
 
+function dataUrlToBlobUrl(dataUrl) {
+  const [header, base64] = dataUrl.split(',')
+  const mime = header.match(/:(.*?);/)[1]
+  const bytes = atob(base64)
+  const ab = new Uint8Array(bytes.length)
+  for (let i = 0; i < bytes.length; i++) ab[i] = bytes.charCodeAt(i)
+  return URL.createObjectURL(new Blob([ab], { type: mime }))
+}
+
 function PreviewModal({ quotation, onClose, darkMode }) {
+  const hasPdfs = quotation.pdfDataUrls?.length > 0
+  const [tab, setTab] = useState(hasPdfs ? 'pdf' : 'items')
+  const [pdfIndex, setPdfIndex] = useState(0)
   const [search, setSearch] = useState('')
+  const [blobUrl, setBlobUrl] = useState(null)
+
+  const activePdf = quotation.pdfDataUrls?.[pdfIndex]
+
+  useEffect(() => {
+    if (!activePdf?.dataUrl) { setBlobUrl(null); return }
+    const url = dataUrlToBlobUrl(activePdf.dataUrl)
+    setBlobUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [activePdf?.dataUrl])
+
   const filtered = search
     ? quotation.items.filter(
         (it) =>
@@ -78,9 +101,10 @@ function PreviewModal({ quotation, onClose, darkMode }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className={`relative w-full max-w-4xl max-h-[85vh] flex flex-col rounded-2xl shadow-2xl border ${
+      <div className={`relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border ${
         darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
       }`}>
+        {/* Header */}
         <div className={`flex items-center justify-between px-5 py-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
           <div>
             <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{quotation.vendorName}</h3>
@@ -92,41 +116,113 @@ function PreviewModal({ quotation, onClose, darkMode }) {
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className={`px-5 py-3 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or article code…"
-            className={`w-full px-3 py-1.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              darkMode ? 'bg-gray-900 border-gray-600 text-gray-200 placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400'
+
+        {/* Tab bar */}
+        <div className={`flex items-center gap-1 px-5 pt-3 pb-0 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+          <button
+            onClick={() => setTab('items')}
+            className={`px-4 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+              tab === 'items'
+                ? darkMode ? 'border-blue-400 text-blue-400' : 'border-blue-600 text-blue-600'
+                : darkMode ? 'border-transparent text-gray-400 hover:text-gray-300' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
-          />
+          >
+            Items ({quotation.items.length})
+          </button>
+          {hasPdfs && (
+            <button
+              onClick={() => setTab('pdf')}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+                tab === 'pdf'
+                  ? darkMode ? 'border-red-400 text-red-400' : 'border-red-600 text-red-600'
+                  : darkMode ? 'border-transparent text-gray-400 hover:text-gray-300' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Quotation PDF{quotation.pdfDataUrls.length > 1 ? `s (${quotation.pdfDataUrls.length})` : ''}
+            </button>
+          )}
         </div>
-        <div className="overflow-y-auto flex-1">
-          <table className="w-full text-sm">
-            <thead className={`sticky top-0 border-b ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-              <tr>
-                {['#', 'Article Code', 'Item Name', 'Unit', 'Price'].map((h, i) => (
-                  <th key={h} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${i >= 3 ? 'text-right' : 'text-left'} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{h}</th>
+
+        {/* Tab: Items */}
+        {tab === 'items' && (
+          <>
+            <div className={`px-5 py-3 border-b ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or article code…"
+                className={`w-full px-3 py-1.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  darkMode ? 'bg-gray-900 border-gray-600 text-gray-200 placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400'
+                }`}
+              />
+            </div>
+            <div className="overflow-y-auto flex-1">
+              <table className="w-full text-sm">
+                <thead className={`sticky top-0 border-b ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <tr>
+                    {['#', 'Article Code', 'Item Name', 'Unit', 'Price'].map((h, i) => (
+                      <th key={h} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${i >= 3 ? 'text-right' : 'text-left'} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((item, idx) => (
+                    <tr key={idx} className={`border-b ${darkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-50 hover:bg-gray-50'}`}>
+                      <td className={`px-3 py-2 text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{idx + 1}</td>
+                      <td className={`px-3 py-2 font-mono text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{item.articleCode || '—'}</td>
+                      <td className={`px-3 py-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{item.name}</td>
+                      <td className={`px-3 py-2 text-right text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{item.unit || '—'}</td>
+                      <td className={`px-3 py-2 text-right font-mono ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{formatCurrency(item.price)}</td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && (
+                    <tr><td colSpan={5} className={`px-3 py-8 text-center text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No items match.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* Tab: PDF viewer */}
+        {tab === 'pdf' && (
+          <div className="flex flex-col flex-1 min-h-0">
+            {quotation.pdfDataUrls.length > 1 && (
+              <div className={`flex gap-2 px-5 py-2 border-b overflow-x-auto ${darkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+                {quotation.pdfDataUrls.map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPdfIndex(i)}
+                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                      pdfIndex === i
+                        ? darkMode ? 'bg-red-900/30 border-red-700 text-red-400' : 'bg-red-50 border-red-300 text-red-700'
+                        : darkMode ? 'border-gray-600 text-gray-400 hover:bg-gray-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <FileText className="w-3 h-3" />
+                    {p.fileName}
+                  </button>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item, idx) => (
-                <tr key={idx} className={`border-b ${darkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-50 hover:bg-gray-50'}`}>
-                  <td className={`px-3 py-2 text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{idx + 1}</td>
-                  <td className={`px-3 py-2 font-mono text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{item.articleCode || '—'}</td>
-                  <td className={`px-3 py-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{item.name}</td>
-                  <td className={`px-3 py-2 text-right text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{item.unit || '—'}</td>
-                  <td className={`px-3 py-2 text-right font-mono ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{formatCurrency(item.price)}</td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={5} className={`px-3 py-8 text-center text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No items match.</td></tr>
+              </div>
+            )}
+            <div className="flex-1 min-h-0 p-3">
+              {blobUrl ? (
+                <iframe
+                  key={blobUrl}
+                  src={blobUrl}
+                  title={activePdf?.fileName}
+                  className="w-full h-full rounded-xl"
+                  style={{ minHeight: '520px', border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb' }}
+                />
+              ) : (
+                <div className={`flex items-center justify-center h-full text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  PDF not available — re-upload the quotation to enable this view.
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -375,10 +471,16 @@ function VendorDraftEditor({ slotIndex, initialDraft, existingId, onSaved, onCan
 
     for (const file of incoming) {
       try {
-        const text = await extractTextFromPdf(file)
+        const [text, dataUrl] = await Promise.all([
+          extractTextFromPdf(file),
+          new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (e) => resolve(e.target.result)
+            reader.readAsDataURL(file)
+          }),
+        ])
         const items = parseQuotationText(text)
-        // isScanned = true when no text layer; still accepted, just contributes 0 items
-        newEntries.push({ fileName: file.name, items, isScanned: items.length === 0 })
+        newEntries.push({ fileName: file.name, items, isScanned: items.length === 0, dataUrl })
       } catch (err) {
         newErrors[file.name] = err.message
       }
@@ -409,6 +511,9 @@ function VendorDraftEditor({ slotIndex, initialDraft, existingId, onSaved, onCan
       ],
       uploadedAt: new Date().toISOString(),
       items: mergedItems,
+      pdfDataUrls: pdfFiles
+        .filter((f) => f.dataUrl)
+        .map((f) => ({ fileName: f.fileName, dataUrl: f.dataUrl })),
     }
     onSaved(quotation)
     setShowConfirm(false)
