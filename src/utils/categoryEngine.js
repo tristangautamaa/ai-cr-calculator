@@ -4,6 +4,8 @@
  */
 
 const CATEGORY_RULES = [
+  // DISPENSER LAKBAN is an ATK tool (tape dispenser), not packaging tape — must precede the LAKBAN rule
+  { keywords: ['DISPENSER LAKBAN'], category: 'ATK GENERAL' },
   { keywords: ['LAKBAN'], category: 'LAKBAN BENING' },
   { keywords: ['KARDUS', 'CARTON', 'KARTON'], category: 'KARDUS' },
   { keywords: ['WRAPPING', 'WRAP', 'PLASTIK WRAPPING'], category: 'PLASTIK WRAPPING' },
