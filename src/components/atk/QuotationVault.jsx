@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import {
   Trash2, Eye, X, FileSpreadsheet, AlertCircle, CheckCircle,
-  Save, ChevronDown, ChevronUp, Plus, Edit2, FileText, Loader,
+  Save, ChevronDown, ChevronUp, Plus, Edit2, FileText, Loader, GripVertical,
 } from 'lucide-react'
 import useATKStore from '../../store/useATKStore'
 import useStore from '../../store/useStore'
@@ -666,7 +666,8 @@ function VendorDraftEditor({ slotIndex, initialDraft, existingId, onSaved, onCan
 
 // ── Saved Vendor Card ─────────────────────────────────────────────────────────
 
-function VendorCard({ quotation, slotIndex, darkMode, onPreview, onRemove, onEdit }) {
+function VendorCard({ quotation, slotIndex, darkMode, onPreview, onRemove, onEdit,
+  isDragging, isDragOver, onDragStart, onDragOver, onDrop, onDragEnd }) {
   const colors = ['#2F80ED', '#27AE60', '#F2994A']
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -675,9 +676,20 @@ function VendorCard({ quotation, slotIndex, darkMode, onPreview, onRemove, onEdi
 
   return (
     <>
-      <div className={`rounded-xl border p-4 flex flex-col gap-3 ${darkMode ? 'bg-gray-750 border-gray-600' : 'bg-white border-gray-200'}`}>
+      <div
+        draggable
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
+        className={`rounded-xl border p-4 flex flex-col gap-3 transition-all select-none cursor-grab active:cursor-grabbing
+          ${isDragging ? 'opacity-40 scale-95' : ''}
+          ${isDragOver ? 'ring-2 ring-blue-400 ring-offset-1' : ''}
+          ${darkMode ? 'bg-gray-750 border-gray-600' : 'bg-white border-gray-200'}`}
+      >
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
+            <GripVertical className={`w-4 h-4 shrink-0 ${darkMode ? 'text-gray-600' : 'text-gray-300'}`} title="Drag to reorder" />
             <div className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: colors[slotIndex] }}>
               V{slotIndex + 1}
             </div>
@@ -751,9 +763,11 @@ function EmptySlot({ slotIndex, darkMode, onActivate }) {
 
 export default function QuotationVault() {
   const { darkMode } = useStore()
-  const { quotations, commitQuotation, removeQuotation } = useATKStore()
+  const { quotations, commitQuotation, removeQuotation, reorderQuotations } = useATKStore()
   const [previewId, setPreviewId] = useState(null)
   const [editingSlot, setEditingSlot] = useState(null)
+  const [draggedSlot, setDraggedSlot] = useState(null)
+  const [dragOverSlot, setDragOverSlot] = useState(null)
 
   const previewQuotation = quotations.find((q) => q.id === previewId)
 
@@ -816,6 +830,19 @@ export default function QuotationVault() {
                   onPreview={() => setPreviewId(quotation.id)}
                   onRemove={() => removeQuotation(quotation.id)}
                   onEdit={() => setEditingSlot(slotIdx)}
+                  isDragging={draggedSlot === slotIdx}
+                  isDragOver={dragOverSlot === slotIdx && draggedSlot !== slotIdx}
+                  onDragStart={() => setDraggedSlot(slotIdx)}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    if (draggedSlot !== null && draggedSlot !== slotIdx) setDragOverSlot(slotIdx)
+                  }}
+                  onDrop={() => {
+                    if (draggedSlot !== null && draggedSlot !== slotIdx) reorderQuotations(draggedSlot, slotIdx)
+                    setDraggedSlot(null)
+                    setDragOverSlot(null)
+                  }}
+                  onDragEnd={() => { setDraggedSlot(null); setDragOverSlot(null) }}
                 />
               )
             }

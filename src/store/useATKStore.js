@@ -39,6 +39,14 @@ const useATKStore = create((set, get) => ({
     persist(next)
     set({ quotations: next })
   },
+
+  reorderQuotations: (fromIndex, toIndex) => {
+    const arr = [...get().quotations]
+    const [moved] = arr.splice(fromIndex, 1)
+    arr.splice(toIndex, 0, moved)
+    persist(arr)
+    set({ quotations: arr })
+  },
 }))
 
 export default useATKStore

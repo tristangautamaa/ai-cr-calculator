@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ClipboardPaste, Zap, Trash2, AlertCircle, ShieldCheck, ChevronDown, ChevronRight } from 'lucide-react'
+import { ClipboardPaste, Zap, Trash2, AlertCircle, ShieldCheck, ChevronDown, ChevronRight, Info, X } from 'lucide-react'
 import useStore from '../store/useStore'
 import useATKStore from '../store/useATKStore'
 import { parseTicketForATK, crossReference } from '../utils/atkMatcher'
@@ -25,6 +25,12 @@ export default function ATKPriceChecker() {
   const [error, setError] = useState('')
   const [totalFromTicket, setTotalFromTicket] = useState(0)
   const [vendorCountWarning, setVendorCountWarning] = useState(null) // { dataVendors, loadedVendors }
+  const [showTips, setShowTips] = useState(() => !sessionStorage.getItem('atk-tips-dismissed'))
+
+  function dismissTips() {
+    sessionStorage.setItem('atk-tips-dismissed', '1')
+    setShowTips(false)
+  }
 
   function handleCheck() {
     setError('')
@@ -84,6 +90,39 @@ export default function ATKPriceChecker() {
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+
+      {/* ── Tips banner ───────────────────────────────────────────────────── */}
+      {showTips && (
+        <div className={`rounded-2xl border p-4 flex gap-3 ${darkMode ? 'bg-blue-900/20 border-blue-700/50' : 'bg-blue-50 border-blue-200'}`}>
+          <Info className={`w-5 h-5 shrink-0 mt-0.5 ${darkMode ? 'text-blue-400' : 'text-blue-500'}`} />
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-semibold mb-2 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+              Before you start — a few reminders
+            </p>
+            <ul className={`text-xs space-y-2 ${darkMode ? 'text-blue-200/80' : 'text-blue-700'}`}>
+              <li className="flex gap-2 items-start">
+                <span className="shrink-0 font-bold">1.</span>
+                <span><strong>Prices may already be saved.</strong> Check the upload date on each vendor card before re-uploading — only refresh if the quoted prices have actually changed.</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <span className="shrink-0 font-bold">2.</span>
+                <span><strong>Ticket data (K2/PSS) is auto-filtered to ATK GENERAL.</strong> If you&apos;re injecting canvassing data instead, pre-filter it to ATK GENERAL items only before pasting.</span>
+              </li>
+              <li className="flex gap-2 items-start">
+                <span className="shrink-0 font-bold">3.</span>
+                <span><strong>Match your vendor count.</strong> If your ticket has 2 or 3 vendor price columns, load the same number of vendor quotations (V1, V2, V3) — the top cards must align with the ticket columns.</span>
+              </li>
+            </ul>
+          </div>
+          <button
+            onClick={dismissTips}
+            title="Dismiss"
+            className={`shrink-0 p-1 rounded transition-colors ${darkMode ? 'hover:bg-blue-800/60 text-blue-400' : 'hover:bg-blue-100 text-blue-500'}`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ── Panel 1: Quotation Vault ───────────────────────────────────────── */}
       <QuotationVault />

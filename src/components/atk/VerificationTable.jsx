@@ -1,4 +1,4 @@
-import { useState, useRef, Fragment } from 'react'
+import { useState, useRef, useEffect, Fragment } from 'react'
 import { ChevronDown, ChevronRight, X, RotateCcw, CheckCircle, AlertTriangle, HelpCircle, Minus, FileDown } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -58,36 +58,43 @@ function computeLiveStatus(item, effectiveTicketPriceFn, effectiveQuotPriceFn) {
 
 // ── Editable ticket price cell ────────────────────────────────────────────────
 
-function TicketPriceCell({ itemId, vendorIndex, price, darkMode, onPriceChange }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState('')
+function TicketPriceCell({ itemId, vendorIndex, price, darkMode, onPriceChange, draftValue, onDraftChange, onCommit }) {
   const inputRef = useRef(null)
+  const escaping = useRef(false)
+  const isEditing = draftValue !== undefined
+
+  useEffect(() => {
+    if (isEditing) {
+      escaping.current = false
+      inputRef.current?.select()
+    }
+  }, [isEditing])
 
   function startEdit() {
-    setDraft(String(price))
-    setEditing(true)
-    setTimeout(() => inputRef.current?.select(), 0)
+    onDraftChange(String(price))
   }
 
   function commit() {
-    const val = parseFloat(draft.replace(/,/g, ''))
-    if (!isNaN(val) && val >= 0) onPriceChange(itemId, vendorIndex, val)
-    setEditing(false)
+    if (!escaping.current) {
+      const val = parseFloat((draftValue || '').replace(/,/g, ''))
+      if (!isNaN(val) && val >= 0) onPriceChange(itemId, vendorIndex, val)
+    }
+    onCommit()
   }
 
   function handleKey(e) {
-    if (e.key === 'Enter') commit()
-    if (e.key === 'Escape') setEditing(false)
+    if (e.key === 'Enter') { escaping.current = false; inputRef.current?.blur() }
+    if (e.key === 'Escape') { escaping.current = true; inputRef.current?.blur() }
   }
 
-  if (editing) {
+  if (isEditing) {
     return (
       <td className="px-1 py-1.5 text-right">
         <input
           ref={inputRef}
           type="number"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          value={draftValue}
+          onChange={(e) => onDraftChange(e.target.value)}
           onBlur={commit}
           onKeyDown={handleKey}
           className={`w-24 text-right text-sm font-mono px-2 py-1 rounded border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
@@ -117,39 +124,46 @@ function TicketPriceCell({ itemId, vendorIndex, price, darkMode, onPriceChange }
 
 // ── Vendor quotation price cell (editable) ────────────────────────────────────
 
-function VendorPriceCell({ itemId, vendorIndex, match, ticketPrice, effectiveQuotPrice, darkMode, onQuotationPriceChange }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState('')
+function VendorPriceCell({ itemId, vendorIndex, match, ticketPrice, effectiveQuotPrice, darkMode, onQuotationPriceChange, draftValue, onDraftChange, onCommit }) {
   const inputRef = useRef(null)
+  const escaping = useRef(false)
 
   const isManuallyPriced = !match?.found && effectiveQuotPrice > 0
   const hasPrice = match?.found || isManuallyPriced
+  const isEditing = draftValue !== undefined
+
+  useEffect(() => {
+    if (isEditing) {
+      escaping.current = false
+      inputRef.current?.select()
+    }
+  }, [isEditing])
 
   function startEdit() {
-    setDraft(String(effectiveQuotPrice || ''))
-    setEditing(true)
-    setTimeout(() => inputRef.current?.select(), 0)
+    onDraftChange(String(effectiveQuotPrice || ''))
   }
 
   function commit() {
-    const val = parseFloat(draft.replace(/,/g, ''))
-    if (!isNaN(val) && val >= 0) onQuotationPriceChange(itemId, vendorIndex, val)
-    setEditing(false)
+    if (!escaping.current) {
+      const val = parseFloat((draftValue || '').replace(/,/g, ''))
+      if (!isNaN(val) && val >= 0) onQuotationPriceChange(itemId, vendorIndex, val)
+    }
+    onCommit()
   }
 
   function handleKey(e) {
-    if (e.key === 'Enter') commit()
-    if (e.key === 'Escape') setEditing(false)
+    if (e.key === 'Enter') { escaping.current = false; inputRef.current?.blur() }
+    if (e.key === 'Escape') { escaping.current = true; inputRef.current?.blur() }
   }
 
-  if (editing) {
+  if (isEditing) {
     return (
       <td className="px-1 py-1.5 text-right">
         <input
           ref={inputRef}
           type="number"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          value={draftValue}
+          onChange={(e) => onDraftChange(e.target.value)}
           onBlur={commit}
           onKeyDown={handleKey}
           className={`w-24 text-right text-sm font-mono px-2 py-1 rounded border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
@@ -251,7 +265,8 @@ function ExpandedDetail({ item, quotations, effectiveTicketPriceFn, effectiveQuo
 
 // ── Main table row ────────────────────────────────────────────────────────────
 
-function ItemRow({ item, rowNumber, quotations, hasVendorPrices, darkMode, onRemove, expanded, onToggle, effectiveTicketPriceFn, effectiveQuotPriceFn, onPriceChange, onQuotationPriceChange }) {
+function ItemRow({ item, rowNumber, quotations, hasVendorPrices, darkMode, onRemove, expanded, onToggle, effectiveTicketPriceFn, effectiveQuotPriceFn, onPriceChange, onQuotationPriceChange,
+  ticketDrafts, onTicketDraftChange, onTicketDraftCommit, quotDrafts, onQuotDraftChange, onQuotDraftCommit }) {
   const liveStatus = computeLiveStatus(item, effectiveTicketPriceFn, effectiveQuotPriceFn)
   const cfg = STATUS_CONFIG[liveStatus] ?? STATUS_CONFIG.NO_REF
   const mode = darkMode ? 'dark' : 'light'
@@ -309,6 +324,9 @@ function ItemRow({ item, rowNumber, quotations, hasVendorPrices, darkMode, onRem
                 price={effectiveTicketPriceFn(item, qi)}
                 darkMode={darkMode}
                 onPriceChange={onPriceChange}
+                draftValue={ticketDrafts[`${item.id}_${qi}`]}
+                onDraftChange={(val) => onTicketDraftChange(`${item.id}_${qi}`, val)}
+                onCommit={() => onTicketDraftCommit(`${item.id}_${qi}`)}
               />
             ))}
             {quotations.map((q, qi) => (
@@ -321,6 +339,9 @@ function ItemRow({ item, rowNumber, quotations, hasVendorPrices, darkMode, onRem
                 effectiveQuotPrice={effectiveQuotPriceFn(item, qi)}
                 darkMode={darkMode}
                 onQuotationPriceChange={onQuotationPriceChange}
+                draftValue={quotDrafts[`${item.id}_${qi}`]}
+                onDraftChange={(val) => onQuotDraftChange(`${item.id}_${qi}`, val)}
+                onCommit={() => onQuotDraftCommit(`${item.id}_${qi}`)}
               />
             ))}
           </>
@@ -332,6 +353,9 @@ function ItemRow({ item, rowNumber, quotations, hasVendorPrices, darkMode, onRem
               price={effectiveTicketPriceFn(item, 0)}
               darkMode={darkMode}
               onPriceChange={onPriceChange}
+              draftValue={ticketDrafts[`${item.id}_0`]}
+              onDraftChange={(val) => onTicketDraftChange(`${item.id}_0`, val)}
+              onCommit={() => onTicketDraftCommit(`${item.id}_0`)}
             />
             {quotations.map((q, qi) => (
               <VendorPriceCell
@@ -343,6 +367,9 @@ function ItemRow({ item, rowNumber, quotations, hasVendorPrices, darkMode, onRem
                 effectiveQuotPrice={effectiveQuotPriceFn(item, qi)}
                 darkMode={darkMode}
                 onQuotationPriceChange={onQuotationPriceChange}
+                draftValue={quotDrafts[`${item.id}_${qi}`]}
+                onDraftChange={(val) => onQuotDraftChange(`${item.id}_${qi}`, val)}
+                onCommit={() => onQuotDraftCommit(`${item.id}_${qi}`)}
               />
             ))}
           </>
@@ -458,6 +485,8 @@ export default function VerificationTable({ items, quotations, darkMode }) {
   const [showRemoved, setShowRemoved] = useState(false)
   const [priceOverrides, setPriceOverrides] = useState({})
   const [quotationPriceOverrides, setQuotationPriceOverrides] = useState({})
+  const [ticketDrafts, setTicketDrafts] = useState({})
+  const [quotDrafts, setQuotDrafts] = useState({})
 
   const hasVendorPrices = items?.some((it) => it.vendorPrices) ?? false
 
@@ -467,6 +496,22 @@ export default function VerificationTable({ items, quotations, darkMode }) {
 
   function handleQuotationPriceChange(itemId, vendorIndex, newPrice) {
     setQuotationPriceOverrides((prev) => ({ ...prev, [`${itemId}_${vendorIndex}`]: newPrice }))
+  }
+
+  function handleTicketDraftChange(key, val) {
+    setTicketDrafts((prev) => ({ ...prev, [key]: val }))
+  }
+
+  function handleTicketDraftCommit(key) {
+    setTicketDrafts((prev) => { const n = { ...prev }; delete n[key]; return n })
+  }
+
+  function handleQuotDraftChange(key, val) {
+    setQuotDrafts((prev) => ({ ...prev, [key]: val }))
+  }
+
+  function handleQuotDraftCommit(key) {
+    setQuotDrafts((prev) => { const n = { ...prev }; delete n[key]; return n })
   }
 
   function getEffectiveTicketPrice(item, vendorIndex) {
@@ -556,12 +601,36 @@ export default function VerificationTable({ items, quotations, darkMode }) {
       }
     })
 
+    const totalRow = { article: 'GRAND TOTAL', name: '', qty: '', unit: '' }
+    if (hasVendorPrices) {
+      quotations.forEach((_, i) => {
+        totalRow[`tv${i}`] = formatCurrency(
+          activeItems.reduce((sum, item) => sum + getEffectiveTicketPrice(item, i), 0)
+        )
+      })
+    } else {
+      totalRow['tv0'] = formatCurrency(
+        activeItems.reduce((sum, item) => sum + getEffectiveTicketPrice(item, 0), 0)
+      )
+    }
+    quotations.forEach((_, i) => {
+      totalRow[`qv${i}`] = formatCurrency(
+        activeItems.reduce((sum, item) => {
+          const p = getEffectiveQuotationPrice(item, i)
+          return sum + (p > 0 ? p : 0)
+        }, 0)
+      )
+    })
+
     autoTable(doc, {
       startY: 28,
       columns,
       body: rows,
+      foot: [totalRow],
+      showFoot: 'lastPage',
       styles: { fontSize: 7.5, cellPadding: 2 },
       headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+      footStyles: { fillColor: [15, 40, 120], textColor: 255, fontStyle: 'bold', fontSize: 8 },
       alternateRowStyles: { fillColor: [245, 247, 250] },
       columnStyles: {
         article: { fontStyle: 'bold', cellWidth: 22 },
@@ -656,6 +725,12 @@ export default function VerificationTable({ items, quotations, darkMode }) {
                   effectiveQuotPriceFn={getEffectiveQuotationPrice}
                   onPriceChange={handlePriceChange}
                   onQuotationPriceChange={handleQuotationPriceChange}
+                  ticketDrafts={ticketDrafts}
+                  onTicketDraftChange={handleTicketDraftChange}
+                  onTicketDraftCommit={handleTicketDraftCommit}
+                  quotDrafts={quotDrafts}
+                  onQuotDraftChange={handleQuotDraftChange}
+                  onQuotDraftCommit={handleQuotDraftCommit}
                 />
               ))}
             </tbody>
