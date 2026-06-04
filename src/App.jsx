@@ -4,6 +4,7 @@ import Header from './components/Header'
 import RawInput from './components/RawInput'
 import ResultTable from './components/ResultTable'
 import ATKPriceChecker from './components/ATKPriceChecker'
+import QuotationConverter from './components/QuotationConverter'
 
 export default function App() {
   const { darkMode, parsedItems } = useStore()
@@ -32,6 +33,8 @@ export default function App() {
       )}
 
       {activePage === 'atk' && <ATKPriceChecker />}
+
+      {activePage === 'quotation-converter' && <QuotationConverter darkMode={darkMode} />}
 
       <footer className={`text-center py-6 text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
         Procurement Ticket Calculator — Operation Excellence Internal Tool

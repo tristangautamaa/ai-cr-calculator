@@ -25,10 +25,9 @@ export default function ATKPriceChecker() {
   const [error, setError] = useState('')
   const [totalFromTicket, setTotalFromTicket] = useState(0)
   const [vendorCountWarning, setVendorCountWarning] = useState(null) // { dataVendors, loadedVendors }
-  const [showTips, setShowTips] = useState(() => !sessionStorage.getItem('atk-tips-dismissed'))
+  const [showTips, setShowTips] = useState(true)
 
   function dismissTips() {
-    sessionStorage.setItem('atk-tips-dismissed', '1')
     setShowTips(false)
   }
 
@@ -102,7 +101,7 @@ export default function ATKPriceChecker() {
             <ul className={`text-xs space-y-2 ${darkMode ? 'text-blue-200/80' : 'text-blue-700'}`}>
               <li className="flex gap-2 items-start">
                 <span className="shrink-0 font-bold">1.</span>
-                <span><strong>Prices may already be saved.</strong> Check the upload date on each vendor card before re-uploading — only refresh if the quoted prices have actually changed.</span>
+                <span><strong>Prices may already be uploaded.</strong> Check the upload date on each vendor card before re-uploading — only refresh if the quoted prices have actually changed.</span>
               </li>
               <li className="flex gap-2 items-start">
                 <span className="shrink-0 font-bold">2.</span>

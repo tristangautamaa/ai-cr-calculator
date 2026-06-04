@@ -109,7 +109,7 @@ function PreviewModal({ quotation, onClose, darkMode }) {
           <div>
             <h3 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{quotation.vendorName}</h3>
             <p className={`text-xs mt-0.5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              {quotation.items.length} items · saved {new Date(quotation.uploadedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+              {quotation.items.length} items · uploaded {new Date(quotation.uploadedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
             </p>
           </div>
           <button onClick={onClose} className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
@@ -712,7 +712,7 @@ function VendorCard({ quotation, slotIndex, darkMode, onPreview, onRemove, onEdi
         <div className={`flex gap-3 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           <span className={`font-semibold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>{quotation.items.length} items</span>
           <span>·</span>
-          <span>Saved {uploadDate} {uploadTime}</span>
+          <span>Uploaded {uploadDate} {uploadTime}</span>
         </div>
 
         <div className="flex gap-2">
@@ -785,7 +785,7 @@ export default function QuotationVault() {
         {quotations.length > 0 && (
           <div className={`flex items-center gap-1.5 text-xs ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
             <CheckCircle className="w-3.5 h-3.5" />
-            {quotations.length} saved
+            {quotations.length} uploaded
           </div>
         )}
       </div>

@@ -1,12 +1,13 @@
-import { Moon, Sun, Printer, ShieldCheck } from 'lucide-react'
+import { Moon, Sun, Printer, ShieldCheck, FileSearch2 } from 'lucide-react'
 import useStore from '../store/useStore'
 
 export default function Header({ activePage, setActivePage }) {
   const { darkMode, toggleDarkMode } = useStore()
 
   const tabs = [
-    { id: 'calculator', label: 'CR Calculator', icon: Printer },
+    { id: 'calculator', label: 'Jasa Cetak Calculator', icon: Printer },
     { id: 'atk', label: 'ATK Price Checker', icon: ShieldCheck },
+    { id: 'quotation-converter', label: 'Quotation Converter', icon: FileSearch2 },
   ]
 
   return (
