@@ -28,6 +28,7 @@ export default function QuotationConverter({ darkMode }) {
   const [error, setError] = useState(null)
   const [copied, setCopied] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [progress, setProgress] = useState(null)
 
   const fileInputRef = useRef(null)
   const hasApiKey = !!import.meta.env.VITE_GROQ_API_KEY
@@ -55,13 +56,15 @@ export default function QuotationConverter({ darkMode }) {
     setLoading(true)
     setError(null)
     setRows([])
+    setProgress(null)
     try {
-      const extracted = await convertFilesToTable(files)
+      const extracted = await convertFilesToTable(files, setProgress)
       setRows(extracted)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
+      setProgress(null)
     }
   }
 
@@ -80,6 +83,25 @@ export default function QuotationConverter({ darkMode }) {
       { id: `row-new-${Date.now()}`, no: prev.length + 1, description: '', unit: '', qty: '', unitPrice: '', total: '', notes: '' },
     ])
 
+  // Coerce a cell to a real number when it looks numeric, so the exported XLSX
+  // stores numeric cells (usable as price reference in the ATK Calculator tab).
+  // Strips currency symbols/spaces and US- or ID-style thousands separators.
+  const toNumberCell = (val) => {
+    if (typeof val === 'number') return val
+    const s = String(val ?? '').trim()
+    if (!s) return ''
+    let cleaned = s.replace(/[^\d.,-]/g, '')
+    if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(cleaned)) {
+      // ID format: 1.228.770 or 37.000,00
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.')
+    } else {
+      // US format: 37,000 or 37,000.00
+      cleaned = cleaned.replace(/,/g, '')
+    }
+    const n = parseFloat(cleaned)
+    return Number.isFinite(n) ? n : s
+  }
+
   const exportXlsx = () => {
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.json_to_sheet(
@@ -87,9 +109,9 @@ export default function QuotationConverter({ darkMode }) {
         'No.': r.no,
         Description: r.description,
         Unit: r.unit,
-        Qty: r.qty,
-        'Unit Price': r.unitPrice,
-        Total: r.total,
+        Qty: toNumberCell(r.qty),
+        'Unit Price': toNumberCell(r.unitPrice),
+        Total: toNumberCell(r.total),
         Notes: r.notes,
       }))
     )
@@ -227,7 +249,7 @@ export default function QuotationConverter({ darkMode }) {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Extracting…
+                {progress ? `Extracting… (${progress.current}/${progress.total})` : 'Extracting…'}
               </>
             ) : (
               <>

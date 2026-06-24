@@ -49,21 +49,15 @@ Rules:
 - Skip header rows, subtotal rows, grand total rows, and non-item rows
 - Use null for any field that is not visible or not applicable`
 
-export async function convertFilesToTable(files) {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY
-  if (!apiKey) throw new Error('VITE_GROQ_API_KEY is not set in .env')
+// How many page images to send per API request. Keeps each request's payload
+// small enough to avoid HTTP/2 protocol errors and its output table under the
+// model's token limit.
+const PAGES_PER_REQUEST = 2
 
-  const allImages = []
-  for (const file of files) {
-    if (file.type === 'application/pdf') {
-      allImages.push(...(await pdfToBase64Images(file)))
-    } else {
-      allImages.push(await imageFileToBase64(file))
-    }
-  }
-
+// Extract the raw rows from a single batch of page images via one API call.
+async function extractRowsFromImages(images, apiKey) {
   const content = [
-    ...allImages.map(({ base64, mediaType }) => ({
+    ...images.map(({ base64, mediaType }) => ({
       type: 'image_url',
       image_url: { url: `data:${mediaType};base64,${base64}` },
     })),
@@ -79,6 +73,8 @@ export async function convertFilesToTable(files) {
     body: JSON.stringify({
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [{ role: 'user', content }],
+      temperature: 0,
+      max_completion_tokens: 8000,
     }),
   })
 
@@ -94,14 +90,50 @@ export async function convertFilesToTable(files) {
 
   const data = await response.json()
   const text = data.choices?.[0]?.message?.content || ''
+  const finishReason = data.choices?.[0]?.finish_reason
 
   const jsonMatch = text.match(/\[[\s\S]*\]/)
-  if (!jsonMatch) throw new Error('Could not find JSON in API response. Raw: ' + text.slice(0, 300))
+  if (!jsonMatch) {
+    if (finishReason === 'length') {
+      throw new Error(
+        'A page produced too many rows for the model to finish in one response. Try lowering PAGES_PER_REQUEST or splitting the file.'
+      )
+    }
+    throw new Error('Could not find JSON in API response. Raw: ' + text.slice(0, 300))
+  }
 
-  const parsed = JSON.parse(jsonMatch[0])
+  return JSON.parse(jsonMatch[0])
+}
 
-  return parsed.map((row, idx) => ({
-    id: `row-${Date.now()}-${idx}`,
+export async function convertFilesToTable(files, onProgress) {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY
+  if (!apiKey) throw new Error('VITE_GROQ_API_KEY is not set in .env')
+
+  const allImages = []
+  for (const file of files) {
+    if (file.type === 'application/pdf') {
+      allImages.push(...(await pdfToBase64Images(file)))
+    } else {
+      allImages.push(await imageFileToBase64(file))
+    }
+  }
+
+  // Split pages into batches and process each batch in its own request.
+  const batches = []
+  for (let i = 0; i < allImages.length; i += PAGES_PER_REQUEST) {
+    batches.push(allImages.slice(i, i + PAGES_PER_REQUEST))
+  }
+
+  const rawRows = []
+  for (let i = 0; i < batches.length; i++) {
+    onProgress?.({ current: i + 1, total: batches.length })
+    const rows = await extractRowsFromImages(batches[i], apiKey)
+    rawRows.push(...rows)
+  }
+
+  const stamp = Date.now()
+  return rawRows.map((row, idx) => ({
+    id: `row-${stamp}-${idx}`,
     no: idx + 1,
     description: row.description ?? '',
     unit: row.unit ?? '',
