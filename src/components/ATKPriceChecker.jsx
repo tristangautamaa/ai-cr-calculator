@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { ClipboardPaste, Zap, Trash2, AlertCircle, ShieldCheck, ChevronDown, ChevronRight, Info, X } from 'lucide-react'
+import { ClipboardPaste, Zap, Trash2, AlertCircle, ShieldCheck, ChevronDown, ChevronRight, Info, X, ListPlus } from 'lucide-react'
 import useStore from '../store/useStore'
 import useATKStore from '../store/useATKStore'
-import { parseTicketForATK, crossReference } from '../utils/atkMatcher'
+import { parseTicketForATK, crossReference, reclassifyExcludedAsATK } from '../utils/atkMatcher'
 import QuotationVault from './atk/QuotationVault'
 import VerificationTable from './atk/VerificationTable'
 
@@ -70,6 +70,18 @@ export default function ATKPriceChecker() {
     } catch (err) {
       setError('Parse error: ' + err.message)
     }
+  }
+
+  // Re-recognize a wrongly-excluded item as ATK: cross-reference it and move it into results
+  function reclassifyAsATK(index) {
+    const item = excluded[index]
+    if (!item) return
+
+    const paddedQuotations = [0, 1, 2].map((i) => quotations[i] ?? null)
+    const matched = reclassifyExcludedAsATK(item, paddedQuotations)
+
+    setResults((prev) => [...(prev ?? []), matched])
+    setExcluded((prev) => prev.filter((_, i) => i !== index))
   }
 
   function handleClear() {
@@ -267,6 +279,7 @@ export default function ATKPriceChecker() {
                       <th className="px-4 py-2.5 text-right">Unit</th>
                       <th className="px-4 py-2.5 text-right">Price</th>
                       <th className="px-4 py-2.5 text-left">Classified As</th>
+                      <th className="px-4 py-2.5 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -296,6 +309,20 @@ export default function ATKPriceChecker() {
                           }`}>
                             {item.category}
                           </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <button
+                            onClick={() => reclassifyAsATK(i)}
+                            title="Wrongly excluded? Re-recognize this item as ATK GENERAL and add it to the verification table"
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                              darkMode
+                                ? 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
+                                : 'bg-green-50 text-green-700 hover:bg-green-100'
+                            }`}
+                          >
+                            <ListPlus className="w-3.5 h-3.5" />
+                            Mark as ATK
+                          </button>
                         </td>
                       </tr>
                     ))}

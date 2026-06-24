@@ -124,7 +124,7 @@ export function parseTicketForATK(raw) {
     const category = isJasaCetak(name) ? 'JASA CETAK' : classifyItem(name)
 
     if (category !== 'ATK GENERAL') {
-      excluded.push({ name, articleCode, qty, unit, price, category })
+      excluded.push({ name, articleCode, qty, unit, price, category, ...(vendorPrices ? { vendorPrices } : {}) })
       continue
     }
 
@@ -141,6 +141,26 @@ export function parseTicketForATK(raw) {
   }
 
   return { items, excluded, vendorCount: maxVendorCount }
+}
+
+/**
+ * Re-recognize a previously-excluded item as ATK GENERAL and cross-reference it.
+ * Used when the auto-classifier wrongly excluded an item.
+ * Returns a single enriched item (same shape as crossReference output).
+ */
+export function reclassifyExcludedAsATK(excludedItem, quotations) {
+  const ticketItem = {
+    id: `atk_reclass_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: excludedItem.name,
+    articleCode: excludedItem.articleCode,
+    qty: excludedItem.qty,
+    unit: excludedItem.unit,
+    price: excludedItem.price,
+    category: 'ATK GENERAL',
+    ...(excludedItem.vendorPrices ? { vendorPrices: excludedItem.vendorPrices } : {}),
+  }
+  const [matched] = crossReference([ticketItem], quotations)
+  return matched
 }
 
 // ── Fuzzy name similarity ─────────────────────────────────────────────────────

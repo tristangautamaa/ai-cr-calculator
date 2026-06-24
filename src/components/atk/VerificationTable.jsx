@@ -564,62 +564,91 @@ export default function VerificationTable({ items, quotations, darkMode }) {
     doc.setFont('helvetica', 'normal')
     doc.text(`Generated: ${new Date().toLocaleString('id-ID')}`, 14, 22)
 
-    const vendorTicketHeaders = hasVendorPrices
-      ? quotations.map((_, i) => `Vendor ${i + 1}`)
-      : ['Vendor 1']
+    // Ticket price indices: one per vendor when ticket carries vendor prices, else a single column
+    const ticketIndices = hasVendorPrices ? quotations.map((_, i) => i) : [0]
+    const qtyOf = (item) => Number(item.qty) || 0
+    const isQuotPriced = (item, i) =>
+      (item.quotationMatches?.[i]?.found ?? false) || getEffectiveQuotationPrice(item, i) > 0
 
-    const vendorQuotHeaders = quotations.map((q) => q.vendorName.toUpperCase())
+    // Each vendor contributes an adjacent Unit + Total (Qty × Unit) pair
+    const ticketColDefs = ticketIndices.flatMap((i) => [
+      { header: hasVendorPrices ? `Ticket V${i + 1}` : 'Ticket', dataKey: `tv${i}` },
+      { header: hasVendorPrices ? `Ticket V${i + 1} Total` : 'Ticket Total', dataKey: `tvt${i}` },
+    ])
+
+    const quotColDefs = quotations.flatMap((q, i) => [
+      { header: q.vendorName.toUpperCase(), dataKey: `qv${i}` },
+      { header: `${q.vendorName.toUpperCase()} Total`, dataKey: `qvt${i}` },
+    ])
 
     const columns = [
       { header: 'ARTICLE', dataKey: 'article' },
       { header: 'ITEM DESCRIPTION', dataKey: 'name' },
       { header: 'QTY', dataKey: 'qty' },
       { header: 'UNIT', dataKey: 'unit' },
-      ...vendorTicketHeaders.map((h, i) => ({ header: h, dataKey: `tv${i}` })),
-      ...vendorQuotHeaders.map((h, i) => ({ header: h, dataKey: `qv${i}` })),
+      ...ticketColDefs,
+      ...quotColDefs,
     ]
 
     const rows = activeItems.map((item) => {
-      const ticketCols = hasVendorPrices
-        ? Object.fromEntries(quotations.map((_, i) => [`tv${i}`, formatCurrency(getEffectiveTicketPrice(item, i))]))
-        : { tv0: formatCurrency(getEffectiveTicketPrice(item, 0)) }
+      const qty = qtyOf(item)
 
-      const quotCols = Object.fromEntries(
-        quotations.map((_, i) => [
-          `qv${i}`,
-          item.quotationMatches?.[i]?.found ? formatCurrency(getEffectiveQuotationPrice(item, i)) : '—',
-        ])
-      )
+      const ticketCols = {}
+      ticketIndices.forEach((i) => {
+        const unit = getEffectiveTicketPrice(item, i)
+        ticketCols[`tv${i}`] = formatCurrency(unit)
+        ticketCols[`tvt${i}`] = formatCurrency(unit * qty)
+      })
+
+      const quotCols = {}
+      quotations.forEach((_, i) => {
+        const priced = isQuotPriced(item, i)
+        const unit = getEffectiveQuotationPrice(item, i)
+        quotCols[`qv${i}`] = priced ? formatCurrency(unit) : '—'
+        quotCols[`qvt${i}`] = priced ? formatCurrency(unit * qty) : '—'
+      })
 
       return {
         article: item.articleCode ?? '—',
         name: item.name,
-        qty: item.qty?.toLocaleString('id-ID') ?? '',
+        qty: qty.toLocaleString('id-ID'),
         unit: item.unit ?? '',
         ...ticketCols,
         ...quotCols,
       }
     })
 
+    // Grand total sums line totals (Qty × Unit); unit columns are left blank
     const totalRow = { article: 'GRAND TOTAL', name: '', qty: '', unit: '' }
-    if (hasVendorPrices) {
-      quotations.forEach((_, i) => {
-        totalRow[`tv${i}`] = formatCurrency(
-          activeItems.reduce((sum, item) => sum + getEffectiveTicketPrice(item, i), 0)
-        )
-      })
-    } else {
-      totalRow['tv0'] = formatCurrency(
-        activeItems.reduce((sum, item) => sum + getEffectiveTicketPrice(item, 0), 0)
+    ticketIndices.forEach((i) => {
+      totalRow[`tv${i}`] = ''
+      totalRow[`tvt${i}`] = formatCurrency(
+        activeItems.reduce((sum, item) => sum + getEffectiveTicketPrice(item, i) * qtyOf(item), 0)
       )
-    }
+    })
     quotations.forEach((_, i) => {
-      totalRow[`qv${i}`] = formatCurrency(
-        activeItems.reduce((sum, item) => {
-          const p = getEffectiveQuotationPrice(item, i)
-          return sum + (p > 0 ? p : 0)
-        }, 0)
+      totalRow[`qv${i}`] = ''
+      totalRow[`qvt${i}`] = formatCurrency(
+        activeItems.reduce(
+          (sum, item) => sum + (isQuotPriced(item, i) ? getEffectiveQuotationPrice(item, i) * qtyOf(item) : 0),
+          0
+        )
       )
+    })
+
+    // Right-align all price cells; bold the Total columns to set them apart
+    const columnStyles = {
+      article: { fontStyle: 'bold', cellWidth: 22 },
+      name: { cellWidth: 55 },
+      qty: { halign: 'right', cellWidth: 12 },
+      unit: { halign: 'center', cellWidth: 12 },
+    }
+    columns.forEach((c) => {
+      if (c.dataKey.startsWith('tvt') || c.dataKey.startsWith('qvt')) {
+        columnStyles[c.dataKey] = { halign: 'right', fontStyle: 'bold', textColor: [15, 40, 120] }
+      } else if (c.dataKey.startsWith('tv') || c.dataKey.startsWith('qv')) {
+        columnStyles[c.dataKey] = { halign: 'right', textColor: [90, 90, 90] }
+      }
     })
 
     autoTable(doc, {
@@ -628,17 +657,19 @@ export default function VerificationTable({ items, quotations, darkMode }) {
       body: rows,
       foot: [totalRow],
       showFoot: 'lastPage',
-      styles: { fontSize: 7.5, cellPadding: 2 },
-      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 7 },
-      footStyles: { fillColor: [15, 40, 120], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      styles: { fontSize: 7.5, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
+      footStyles: { fillColor: [15, 40, 120], textColor: 255, fontStyle: 'bold', fontSize: 8, halign: 'right' },
       alternateRowStyles: { fillColor: [245, 247, 250] },
-      columnStyles: {
-        article: { fontStyle: 'bold', cellWidth: 22 },
-        name: { cellWidth: 60 },
-        qty: { halign: 'right', cellWidth: 12 },
-        unit: { halign: 'center', cellWidth: 12 },
-      },
+      columnStyles,
     })
+
+    // Note below the grand total
+    const finalY = doc.lastAutoTable?.finalY ?? 28
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'italic')
+    doc.setTextColor(120, 120, 120)
+    doc.text('* Grand total is not inclusive of tax.', 14, finalY + 7)
 
     doc.save('summary.pdf')
   }
